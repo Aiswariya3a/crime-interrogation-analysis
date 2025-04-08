@@ -1,0 +1,7 @@
+Flask
+deepface
+opencv-python
+tensorflow # or the specific backend you chose
+pandas
+google-generativeai
+openpyxl # Required for Excel export
