@@ -11,6 +11,9 @@ import datetime
 import json
 import google.generativeai as genai # Import Gemini library
 from io import BytesIO
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -254,6 +257,32 @@ def index():
     """Serves the main HTML page."""
     return render_template('index_realtime.html') # We'll create this new template
 
+@app.route('/auth/login')
+def login():
+    return render_template('auth/login.html')
+
+@app.route('/auth/register')
+def register():
+    return render_template('auth/register.html')
+
+@app.route('/auth/forgot')
+def forgot_password():
+    return render_template('auth/forgot.html')
+
+@app.route('/auth/mfa')
+def mfa_verify():
+    return render_template('auth/mfa.html')
+
+
+@app.route('/api/check-auth')
+def check_auth():
+    return jsonify({'authenticated': True})
+
+cred = credentials.Certificate('path/to/serviceAccountKey.json')
+firebase_admin.initialize_app(cred)
+
+
+    
 @app.route('/start_analysis', methods=['POST'])
 def start_analysis():
     """Starts the video capture and analysis thread."""

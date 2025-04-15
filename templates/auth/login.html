@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Login | MFA Demo{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="card">
+        <h1>Welcome Back</h1>
+        <div id="alert" class="alert"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            
+            <button type="submit" class="btn">Sign In</button>
+        </form>
+        
+        <div class="link">
+            <a href="{{ url_for('forgot_password') }}">Forgot password?</a> | 
+            <a href="{{ url_for('register') }}">Create account</a>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script>
+    // Initialize Firebase auth
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            await auth.signInWithEmailAndPassword(email, password);
+            
+            if (!auth.currentUser.emailVerified) {
+                await auth.signOut();
+                showAlert('Please verify your email first');
+                return;
+            }
+            
+            // Redirect to MFA page
+            window.location.href = "{{ url_for('mfa_verify') }}";
+        } catch (error) {
+            showAlert(error.message);
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}
