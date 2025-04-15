@@ -281,6 +281,25 @@ def check_auth():
 cred = credentials.Certificate('path/to/serviceAccountKey.json')
 firebase_admin.initialize_app(cred)
 
+def init_firebase():
+    try:
+        # Path to your service account key
+        cred_path = os.path.join(os.path.dirname(__file__), 'firebase-service-account.json')
+        
+        if not os.path.exists(cred_path):
+            raise FileNotFoundError(
+                f"Firebase service account key not found at {cred_path}\n"
+                "Please download it from Firebase Console and place it in your project root."
+            )
+        
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        print("Firebase Admin initialized successfully!")
+    except Exception as e:
+        print(f"Error initializing Firebase: {str(e)}")
+        # Handle error appropriately for your application
+
+init_firebase()
 
     
 @app.route('/start_analysis', methods=['POST'])
