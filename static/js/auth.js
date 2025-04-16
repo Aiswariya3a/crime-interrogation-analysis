@@ -1,28 +1,40 @@
-// Auth State Management
-let currentUser = null;
+let authCheckInProgress = false;
 
-// Initialize auth state listener
-auth.onAuthStateChanged(user => {
-  if (user && user.emailVerified) {
-      // Check if we're already on the dashboard
-      if (!window.location.pathname.includes('index_realtime')) {
-          // Test if the route exists first
-          fetch('/index_realtime')
-              .then(response => {
-                  if (response.ok) {
-                      window.location.href = '/index_realtime';
-                  } else {
-                      console.error('Dashboard route not found');
-                      // Fallback to a different page
-                      window.location.href = '/protected';
-                  }
-              })
-              .catch(error => {
-                  console.error('Route check failed:', error);
-              });
-      }
-  }
+auth.onAuthStateChanged(async (user) => {
+    if (authCheckInProgress) return;
+    authCheckInProgress = true;
+    
+    try {
+        const currentPath = window.location.pathname;
+        const isAuthPage = currentPath.includes('/auth');
+        
+        if (user) {
+            // User is logged in
+            if (!user.emailVerified) {
+                await auth.signOut();
+                if (!currentPath.includes('/auth/login')) {
+                    window.location.href = '/auth/login';
+                }
+                return;
+            }
+            
+            // If on auth pages, redirect to app
+            if (isAuthPage && !currentPath.includes('mfa')) {
+                window.location.href = '/index_realtime';
+            }
+        } else {
+            // User is logged out
+            if (!isAuthPage) {
+                window.location.href = '/auth/login';
+            }
+        }
+    } catch (error) {
+        console.error('Auth state error:', error);
+    } finally {
+        authCheckInProgress = false;
+    }
 });
+
 
 // Registration Function
 const handleRegister = async (email, password) => {
@@ -61,7 +73,7 @@ const handlePasswordReset = async (email) => {
 
 // DOM Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-  initAuth();
+   
   
   // Login Form
   if (document.getElementById('loginForm')) {
@@ -139,8 +151,29 @@ setInterval(async () => {
     }
 }, 60 * 60 * 1000);
 
+ 
+// Logout function
 function logout() {
-  auth.signOut();
-  localStorage.removeItem('firebaseToken');
-  window.location.href = '/auth/login';
+  fetch('/logout', { method: 'POST' })
+    .then(() => {
+      return firebase.auth().signOut();
+    })
+    .then(() => {
+      localStorage.removeItem('firebaseToken');
+      window.location.href = '/auth/login';
+    })
+    .catch((error) => {
+      console.error('Logout error:', error);
+      alert('Error during logout: ' + error.message);
+    });
 }
+
+
+// Add event listener for logout button
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+});
+ 

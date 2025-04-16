@@ -276,7 +276,8 @@ def home():
 
 @app.route('/index_realtime')
 def index_realtime():
-    return render_template('index_realtime.html')
+     return render_template('index_realtime.html')
+
 
 # Auth Routes
 @app.route('/auth/login')
@@ -299,6 +300,11 @@ def mfa_verify():
 @app.route('/api/check-auth')
 def check_auth():
     return jsonify({'authenticated': True})
+
+@app.route('/logout')
+def logout():
+    # You can add server-side session cleanup here if needed
+    return redirect(url_for('login'))
 
 @app.route('/protected')
 @token_required

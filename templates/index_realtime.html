@@ -205,12 +205,11 @@
     </style>
   </head>
   <body>
-    <div class="user-nav">
-      <button id="logoutBtn" class="logout-btn">Logout</button>
-    </div>
-    
     <div class="container">
       <h1>Real-Time Interrogation Analysis</h1>
+      <div class="user-nav">
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
       
   
       <div class="controls">
@@ -415,6 +414,33 @@
           console.error("Error updating chart:", error);
         }
       }
+      function logout() {
+        firebase.auth().signOut().then(() => {
+          localStorage.removeItem('firebaseToken');
+          window.location.href = '/auth/login';
+        }).catch((error) => {
+          console.error('Logout error:', error);
+          alert('Error during logout: ' + error.message);
+        });
+      }
+
+            {% comment %} // Update auth state listener
+            auth.onAuthStateChanged(user => {
+              if (!user) {
+                window.location.href = '/auth/login';
+              }
+            });
+      
+            // Add logout button event listener
+            document.addEventListener('DOMContentLoaded', () => {
+              const logoutBtn = document.getElementById('logoutBtn');
+              if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+              }
+              
+              // ... rest of your existing DOMContentLoaded code ...
+            }); {% endcomment %}
+      
 
       // Function to update the raw data display
       function updateRawDataDisplay(newData) {
