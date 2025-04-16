@@ -11,10 +11,11 @@ import datetime
 import json
 import google.generativeai as genai # Import Gemini library
 from io import BytesIO
-import firebase_admin
-from firebase_admin import credentials
-from functools import wraps
+import firebase_admin 
+from firebase_admin import credentials, auth
 
+from functools import wraps
+ 
 
 
 # Configure logging
@@ -276,13 +277,27 @@ def home():
 
 @app.route('/index_realtime')
 def index_realtime():
-     return render_template('index_realtime.html')
+    token = request.cookies.get('firebaseToken') or request.headers.get('Authorization')
+    
+    if not token:
+        return jsonify({"message": "Token is missing!"}), 403
+    
+    try:
+        decoded_token = auth.verify_id_token(token)
+        response = make_response(render_template('index_realtime.html'))
+        return response
+    except Exception as e:
+        return jsonify({"message": str(e)}), 403
+
 
 
 # Auth Routes
 @app.route('/auth/login')
 def login():
+    
     return render_template('auth/login.html')
+
+
 
 @app.route('/auth/register')
 def register():
@@ -295,7 +310,27 @@ def forgot_password():
 @app.route('/auth/mfa')
 def mfa_verify():
     return render_template('auth/mfa.html')
-
+@app.route('/set_auth_cookie', methods=['POST'])
+def set_auth_cookie():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({"message": "Token missing"}), 400
+    
+    try:
+        auth.verify_id_token(token)
+        response = make_response(jsonify({"status": "success"}))
+        response.set_cookie(
+            'firebaseToken',
+            token,
+            max_age=3600,  # 1 hour expiration
+            secure=True,  # HTTPS only in production
+            httponly=True,
+            samesite='Lax'
+        )
+        return response
+    except Exception as e:
+        return jsonify({"message": str(e)}), 401
+    
 # API Routes
 @app.route('/api/check-auth')
 def check_auth():
@@ -303,19 +338,28 @@ def check_auth():
 
 @app.route('/logout')
 def logout():
-    # You can add server-side session cleanup here if needed
-    return redirect(url_for('login'))
+    response = make_response(redirect('/auth/login'))
+    response.delete_cookie('firebaseToken')
+    return response
+
 
 @app.route('/protected')
-@token_required
 def protected_route():
-    # Verify the token first
+    # Get token from either cookie or Authorization header
+    token = request.cookies.get('firebaseToken') or \
+            request.headers.get('Authorization')
+    
+    if not token:
+        return jsonify({"message": "Token is missing!"}), 403
+    
     try:
-        token = request.headers.get('Authorization')
         decoded_token = auth.verify_id_token(token)
-        return render_template('index_realtime.html')  # Render your UI
+        # Token is valid - render protected page
+        response = make_response(render_template('index_realtime.html'))
+        return response
     except Exception as e:
-        return redirect(url_for('login'))
+        return jsonify({"message": str(e)}), 403
+
 
 # firebase lets initialize 
 cred = credentials.Certificate("firebase-service-account.json")

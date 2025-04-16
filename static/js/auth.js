@@ -1,42 +1,41 @@
-let authCheckInProgress = false;
+let isCheckingAuth = false; // Global flag to prevent loops
 
-auth.onAuthStateChanged(async (user) => {
-    if (authCheckInProgress) return;
-    authCheckInProgress = true;
+auth.onAuthStateChanged(user => {
+    if (isCheckingAuth) return;
+    isCheckingAuth = true;
     
+    const currentPath = window.location.pathname;
+    const isAuthPage = currentPath.includes('/auth');
+
     try {
-        const currentPath = window.location.pathname;
-        const isAuthPage = currentPath.includes('/auth');
-        
         if (user) {
             // User is logged in
             if (!user.emailVerified) {
-                await auth.signOut();
+                auth.signOut();
                 if (!currentPath.includes('/auth/login')) {
                     window.location.href = '/auth/login';
                 }
                 return;
             }
-            
-            // If on auth pages, redirect to app
-            if (isAuthPage && !currentPath.includes('mfa')) {
+
+            // Only redirect if on auth pages (except MFA)
+            if (isAuthPage && !currentPath.includes('/auth/mfa')) {
                 window.location.href = '/index_realtime';
             }
         } else {
-            // User is logged out
+            // User is logged out - only redirect if not already on login page
             if (!isAuthPage) {
                 window.location.href = '/auth/login';
             }
         }
-    } catch (error) {
-        console.error('Auth state error:', error);
     } finally {
-        authCheckInProgress = false;
+        isCheckingAuth = false;
     }
 });
 
 
-// Registration Function
+
+// new joineeee !! 
 const handleRegister = async (email, password) => {
   try {
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
@@ -61,7 +60,7 @@ const handleLogin = async (email, password) => {
   }
 };
 
-// Password Reset
+// Password Reset should happen here.
 const handlePasswordReset = async (email) => {
   try {
     await auth.sendPasswordResetEmail(email);
@@ -92,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Registration Form
+
   if (document.getElementById('registerForm')) {
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -109,21 +109,41 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // MFA Form
-  document.getElementById('mfaForm')?.addEventListener('submit', async (e) => {
+document.getElementById('mfaForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const otp = e.target.otp.value;
     
     if (otp === '123456') {
-        // Get and store the ID token
-        const token = await auth.currentUser.getIdToken();
-        localStorage.setItem('firebaseToken', token);
-        
-        // Redirect to protected route with token
-        window.location.href = '/protected';
+        try {
+            const user = auth.currentUser;
+            if (!user) throw new Error("No authenticated user");
+            
+            const token = await user.getIdToken();
+            
+            // Store token in two places:
+            localStorage.setItem('firebaseToken', token);
+            
+            // Set HTTP-only cookie via Flask endpoint
+            const response = await fetch('/set_auth_cookie', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token
+                }
+            });
+            
+            if (!response.ok) throw new Error("Failed to set auth cookie");
+            
+            window.location.href = '/protected';
+        } catch (error) {
+            console.error('MFA verification failed:', error);
+            alert('Authentication error: ' + error.message);
+        }
     } else {
-        alert('Invalid OTP');
+        alert('Invalid OTP code');
     }
 });
+
 
 
   // Forgot Password Form
@@ -153,21 +173,34 @@ setInterval(async () => {
 
  
 // Logout function
-function logout() {
-  fetch('/logout', { method: 'POST' })
-    .then(() => {
-      return firebase.auth().signOut();
-    })
-    .then(() => {
+async function logout() {
+  try {
+    console.log("Pressed logout btn")
+      // Show loading state
+      const btn = document.getElementById('logoutBtn');
+      if (btn) btn.disabled = true;
+
+      // Sign out and CLEAR all auth-related data
+      await auth.signOut();
       localStorage.removeItem('firebaseToken');
-      window.location.href = '/auth/login';
-    })
-    .catch((error) => {
-      console.error('Logout error:', error);
-      alert('Error during logout: ' + error.message);
-    });
+      sessionStorage.clear();
+
+     
+      window.location.replace('/auth/login'); // i used replace() instead of href to prevent history entry
+  } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Logout error. Please check console.");
+  }
 }
 
+
+// firebase.auth().signOut().then(() => {
+//   console.log("Successfully signed out from Firebase");
+//   localStorage.removeItem('firebaseToken');  // Clear your token
+//   window.location.href = "/auth/login";     // Redirect to login
+// }).catch(error => {
+//   console.error("Firebase signout error:", error);
+// });
 
 // Add event listener for logout button
 document.addEventListener('DOMContentLoaded', () => {
