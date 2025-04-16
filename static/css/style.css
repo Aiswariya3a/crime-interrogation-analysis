@@ -113,3 +113,23 @@
     color: var(--success);
     display: block;
   }
+  .user-nav {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
+  
+  .logout-btn {
+    background-color: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .logout-btn:hover {
+    background-color: #c82333;
+  }
+  

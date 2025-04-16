@@ -1,37 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Identity | MFA Demo</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link href="../css/style.css" rel="stylesheet">
-</head>
-<body>
-  <div class="auth-container">
-    <div class="card">
-      <h1>Verify Your Identity</h1>
-      <div id="alert" class="alert"></div>
-      <p style="text-align: center; margin-bottom: 24px;">We've sent a 6-digit code to your email</p>
-      
-      <form id="mfaForm">
-        <div class="form-group">
-          <label for="otp">Verification Code</label>
-          <input type="text" id="otp" placeholder="123456" maxlength="6" required>
-        </div>
-        
-        <button type="submit" class="btn">Verify</button>
-      </form>
-      
-      <div class="link">
-        <a href="#" id="resendOtp">Resend code</a>
-      </div>
-    </div>
-  </div>
+{% extends "base.html" %}
 
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
-  <script src="../js/config.js"></script>
-  <script src="../js/auth.js"></script>
-</body>
-</html>
+{% block content %}
+<div class="mfa-container">
+  <h2>Enter OTP</h2>
+  <form id="mfaForm">
+    <input type="text" name="otp" placeholder="6-digit code" required>
+    <button type="submit">Verify</button>
+  </form>
+</div>
+{% endblock %}

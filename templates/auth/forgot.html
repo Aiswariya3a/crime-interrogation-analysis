@@ -1,36 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Password | MFA Demo</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link href="../css/style.css" rel="stylesheet">
-</head>
-<body>
-  <div class="auth-container">
-    <div class="card">
-      <h1>Reset Password</h1>
-      <div id="alert" class="alert"></div>
-      
-      <form id="forgotForm">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" required>
-        </div>
-        
-        <button type="submit" class="btn">Send Reset Link</button>
-      </form>
-      
-      <div class="link">
-        <a href="login.html">Back to login</a>
-      </div>
-    </div>
-  </div>
+{% extends "base.html" %}
 
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
-  <script src="../js/config.js"></script>
-  <script src="../js/auth.js"></script>
-</body>
-</html>
+{% block content %}
+<div class="forgot-container">
+  <h2>Reset Password</h2>
+  <form id="forgotForm">
+    <input type="email" name="email" placeholder="Your email" required>
+    <button type="submit">Send Reset Link</button>
+  </form>
+</div>
+{% endblock %}

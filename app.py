@@ -1,6 +1,6 @@
 import os
 import cv2
-from flask import Flask, render_template, Response, jsonify, request, stream_with_context, make_response
+from flask import Flask,url_for, redirect,render_template, Response, jsonify, request, stream_with_context, make_response
 from deepface import DeepFace
 import threading
 import time
@@ -12,7 +12,9 @@ import json
 import google.generativeai as genai # Import Gemini library
 from io import BytesIO
 import firebase_admin
-from firebase_admin import credentials, auth as firebase_auth
+from firebase_admin import credentials
+from functools import wraps
+
 
 
 # Configure logging
@@ -250,13 +252,33 @@ def generate_analysis_stream():
     finally:
         app.logger.info("Stopped sending SSE data.")
 
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 403
+        try:
+            decoded_token = auth.verify_id_token(token)
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 403
+        return f(*args, **kwargs)
+    return decorated
 
 # --- Routes ---
+# @app.route('/')
+# def index():
+#     """Serves the main HTML page."""
+#     return render_template('index_realtime.html')  
 @app.route('/')
-def index():
-    """Serves the main HTML page."""
-    return render_template('index_realtime.html') # We'll create this new template
+def home():
+    return redirect(url_for('login'))
 
+@app.route('/index_realtime')
+def index_realtime():
+    return render_template('index_realtime.html')
+
+# Auth Routes
 @app.route('/auth/login')
 def login():
     return render_template('auth/login.html')
@@ -273,33 +295,28 @@ def forgot_password():
 def mfa_verify():
     return render_template('auth/mfa.html')
 
-
+# API Routes
 @app.route('/api/check-auth')
 def check_auth():
     return jsonify({'authenticated': True})
 
-cred = credentials.Certificate('path/to/serviceAccountKey.json')
+@app.route('/protected')
+@token_required
+def protected_route():
+    # Verify the token first
+    try:
+        token = request.headers.get('Authorization')
+        decoded_token = auth.verify_id_token(token)
+        return render_template('index_realtime.html')  # Render your UI
+    except Exception as e:
+        return redirect(url_for('login'))
+
+# firebase lets initialize 
+cred = credentials.Certificate("firebase-service-account.json")
 firebase_admin.initialize_app(cred)
 
-def init_firebase():
-    try:
-        # Path to your service account key
-        cred_path = os.path.join(os.path.dirname(__file__), 'firebase-service-account.json')
-        
-        if not os.path.exists(cred_path):
-            raise FileNotFoundError(
-                f"Firebase service account key not found at {cred_path}\n"
-                "Please download it from Firebase Console and place it in your project root."
-            )
-        
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred)
-        print("Firebase Admin initialized successfully!")
-    except Exception as e:
-        print(f"Error initializing Firebase: {str(e)}")
-        # Handle error appropriately for your application
 
-init_firebase()
+ 
 
     
 @app.route('/start_analysis', methods=['POST'])
