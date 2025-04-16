@@ -1,6 +1,7 @@
 import os
 import cv2
 from flask import Flask,url_for, redirect,render_template, Response, jsonify, request, stream_with_context, make_response
+
 from deepface import DeepFace
 import threading
 import time
@@ -253,6 +254,10 @@ def generate_analysis_stream():
     finally:
         app.logger.info("Stopped sending SSE data.")
 
+# firebase lets initialize 
+cred = credentials.Certificate("firebase-service-account.json")
+firebase_admin.initialize_app(cred)
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -273,29 +278,55 @@ def token_required(f):
 #     return render_template('index_realtime.html')  
 @app.route('/')
 def home():
+    token = request.cookies.get('firebaseToken')
+    if token:
+        try:
+            auth.verify_id_token(token)
+            return redirect(url_for('index_realtime'))
+        except:
+            pass  # Invalid or expired token
     return redirect(url_for('login'))
+
 
 @app.route('/index_realtime')
 def index_realtime():
-    token = request.cookies.get('firebaseToken') or request.headers.get('Authorization')
+    # Check both cookie and Authorization header
+    token = request.cookies.get('firebaseToken') or \
+            request.headers.get('Authorization')
     
     if not token:
-        return jsonify({"message": "Token is missing!"}), 403
+        app.logger.warning("No token found for /index_realtime")
+        return redirect(url_for('login'))
     
     try:
+        # Remove 'Bearer ' prefix if present
+        if token and token.startswith('Bearer '):
+            token = token.split(' ')[1]
+            
         decoded_token = auth.verify_id_token(token)
-        response = make_response(render_template('index_realtime.html'))
-        return response
+        app.logger.debug("Token verified for /index_realtime")
+        return render_template('index_realtime.html')
     except Exception as e:
-        return jsonify({"message": str(e)}), 403
+        app.logger.error(f"Token verification failed for /index_realtime: {str(e)}")
+        return redirect(url_for('login'))
+
+
 
 
 
 # Auth Routes
 @app.route('/auth/login')
 def login():
-    
+    token = request.cookies.get('firebaseToken')
+    if token:
+        try:
+            auth.verify_id_token(token)
+            return redirect(url_for('index_realtime'))
+        except:
+            pass
     return render_template('auth/login.html')
+
+
 
 
 
@@ -310,26 +341,27 @@ def forgot_password():
 @app.route('/auth/mfa')
 def mfa_verify():
     return render_template('auth/mfa.html')
+
 @app.route('/set_auth_cookie', methods=['POST'])
 def set_auth_cookie():
     token = request.headers.get('Authorization')
     if not token:
         return jsonify({"message": "Token missing"}), 400
-    
+
     try:
+        # Remove 'Bearer ' prefix if present
+        if token.startswith('Bearer '):
+            token = token.split(' ')[1]
+            
         auth.verify_id_token(token)
-        response = make_response(jsonify({"status": "success"}))
-        response.set_cookie(
-            'firebaseToken',
-            token,
-            max_age=3600,  # 1 hour expiration
-            secure=True,  # HTTPS only in production
-            httponly=True,
-            samesite='Lax'
-        )
+        response = make_response(jsonify({"message": "Token set"}))
+        response.set_cookie('firebaseToken', token, httponly=True, max_age=3600)  # 1 hour expiry
         return response
     except Exception as e:
-        return jsonify({"message": str(e)}), 401
+        app.logger.error(f"Token verification error: {str(e)}")
+        return jsonify({"message": str(e)}), 403
+
+
     
 # API Routes
 @app.route('/api/check-auth')
@@ -338,32 +370,53 @@ def check_auth():
 
 @app.route('/logout')
 def logout():
+    app.logger.info("Logout route called")
     response = make_response(redirect('/auth/login'))
     response.delete_cookie('firebaseToken')
     return response
 
+# Updated token verification function
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.cookies.get('firebaseToken') or \
+               request.headers.get('Authorization')
+        
+        if not token:
+            app.logger.warning("No token found in request")
+            return jsonify({'message': 'Token is missing!'}), 403
+            
+        # Remove 'Bearer ' prefix if present
+        if token and token.startswith('Bearer '):
+            token = token.split(' ')[1]
+            
+        try:
+            app.logger.debug(f"Verifying token: {token[:10]}...")
+            decoded_token = auth.verify_id_token(token)
+            app.logger.debug("Token verified successfully")
+        except Exception as e:
+            app.logger.error(f"Token verification failed: {str(e)}")
+            return jsonify({'message': f'Invalid token: {str(e)}'}), 403
+            
+        return f(*args, **kwargs)
+    return decorated
 
 @app.route('/protected')
 def protected_route():
-    # Get token from either cookie or Authorization header
-    token = request.cookies.get('firebaseToken') or \
-            request.headers.get('Authorization')
-    
+    token = request.cookies.get('firebaseToken')
+
     if not token:
         return jsonify({"message": "Token is missing!"}), 403
-    
+
     try:
         decoded_token = auth.verify_id_token(token)
-        # Token is valid - render protected page
-        response = make_response(render_template('index_realtime.html'))
-        return response
+        # token is valid
+        return render_template('index_realtime.html')
     except Exception as e:
-        return jsonify({"message": str(e)}), 403
+        return jsonify({"message": f"Invalid token: {str(e)}"}), 403
 
 
-# firebase lets initialize 
-cred = credentials.Certificate("firebase-service-account.json")
-firebase_admin.initialize_app(cred)
+
 
 
  

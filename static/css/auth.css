@@ -56,3 +56,58 @@ body {
     background-color: #c82333;
   }
   
+  /* mfa */
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 500px;
+    margin: 50px auto;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 5px;
+}
+h1 { 
+    text-align: center;
+    color: #333;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+}
+button:hover {
+    background-color: #45a049;
+}
+.actions {
+    margin-top: 20px;
+    text-align: center;
+}
+.resend {
+    color: #3498db;
+    cursor: pointer;
+    margin-top: 10px;
+    display: inline-block;
+}
+.error {
+    color: red;
+    margin-top: 10px;
+}
