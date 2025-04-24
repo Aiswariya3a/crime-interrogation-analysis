@@ -1,0 +1,217 @@
+{% extends "dashboard/layout.html" %} {% block title %}Cases Management{%
+endblock %} {% block page_title %}Cases Management{% endblock %} {% block
+content %}
+<div class="card">
+  <h2>Create New Case</h2>
+  <form method="POST" action="{{ url_for('create_case') }}" class="case-form">
+    <div class="form-group">
+      <label for="case_name">Case Name/Title:</label>
+      <input type="text" id="case_name" name="case_name" required />
+    </div>
+    <div class="form-group">
+      <label for="case_bio">Case Bio/Description:</label>
+      <textarea id="case_bio" name="case_bio" rows="3"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Create Case</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Your Cases</h2>
+  {% if cases %}
+  <ul class="case-list">
+    {% for case in cases %}
+    <li class="case-item">
+      <h3>{{ case.name }}</h3>
+      <p><strong>Bio:</strong> {{ case.bio if case.bio else 'N/A' }}</p>
+      {% set current_status = case.status | default('Unknown') %} {# Get status
+      safely #}
+      <p>
+        <strong>Status:</strong>
+        <span class="status-{{ current_status | lower }}"
+          >{{ current_status }}</span
+        >
+      </p>
+      <p>
+        <small
+          >Created: {% set dt = case.created_at | string_to_datetime %}{{
+          dt.strftime('%Y-%m-%d %H:%M') if dt else 'N/A' }}</small
+        >
+      </p>
+
+      <div class="case-actions">
+        {# Wrap actions #} {# Analyze/Re-analyze/View Button #} {% if
+        current_status == 'Analyzed' %}
+        <a
+          href="{{ url_for('download_report', case_id=case.id) }}"
+          class="btn btn-info"
+          >View Report</a
+        >
+        <a
+          href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+          class="btn btn-secondary"
+          >Re-analyze Session</a
+        >
+        {% elif current_status == 'Closed' %}
+        <a
+          href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+          class="btn btn-secondary"
+          >Re-analyze Session</a
+        >
+        {# Optionally show View Report link even if closed #}
+        <a
+          href="{{ url_for('download_report', case_id=case.id) }}"
+          class="btn btn-info"
+          >View Last Report</a
+        >
+        {% else %} {# Default to 'New' or 'Unknown' #}
+        <a
+          href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+          class="btn btn-secondary"
+          >Start Analysis Session</a
+        >
+        {% endif %} {# Close Case Button (as a form) #} {% if current_status !=
+        'Closed' %}
+        <form
+          method="POST"
+          action="{{ url_for('update_case_status', case_id=case.id) }}"
+          style="display: inline-block; margin-left: 10px"
+        >
+          <input type="hidden" name="status" value="Closed" />
+          <button type="submit" class="btn btn-warning">Close Case</button>
+        </form>
+        {% endif %}
+        <!-- Add Delete button later if needed -->
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>You haven't created any cases yet.</p>
+  {% endif %}
+</div>
+
+{% endblock %} {% block scripts %}
+<style>
+  /* Add some basic styling for the form and list */
+  .case-form .form-group {
+    margin-bottom: 15px;
+  }
+  .case-form label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--light-slate);
+  }
+  .case-form input[type="text"],
+  .case-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background-color: var(--navy-blue);
+    border: 1px solid var(--hover-slate);
+    border-radius: 4px;
+    color: var(--light-slate);
+    font-size: 1em;
+  }
+  .case-form textarea {
+    resize: vertical;
+  }
+  .case-form button,
+  .btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+  }
+  .btn-primary {
+    background-color: var(--accent-blue);
+    color: var(--navy-blue);
+    font-weight: bold;
+  }
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+  .btn-secondary {
+    background-color: var(--hover-slate);
+    color: var(--accent-blue);
+    margin-top: 10px;
+  }
+  .btn-secondary:hover {
+    background-color: var(--slate-gray);
+  }
+
+  .case-list {
+    list-style: none;
+    padding: 0;
+  }
+  .case-item {
+    background-color: var(--hover-slate);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border-left: 4px solid var(--accent-blue);
+  }
+  .case-item h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--white);
+  }
+  .case-item p {
+    margin-bottom: 5px;
+  }
+  .case-item small {
+    color: #8892b0; /* Lighter slate text color */
+  }
+
+  /* Add styles for status */
+  .case-item .status-new {
+    color: var(--accent-blue); /* Or another color for 'New' */
+    font-weight: bold;
+  }
+  .case-item .status-analyzed {
+    color: #28a745; /* Green for 'Analyzed' */
+    font-weight: bold;
+  }
+  .case-item .status-closed {
+    color: #dc3545; /* Reddish color for 'Closed' */
+    font-weight: bold;
+  }
+  .case-item .status-unknown {
+    color: #8892b0; /* Lighter slate for unknown */
+    font-style: italic;
+  }
+  .case-item .btn-warning {
+    /* Style for Close Case button */
+    background-color: #ffc107;
+    color: #333;
+  }
+  .case-item .btn-warning:hover {
+    background-color: #e0a800;
+  }
+  .case-item .btn-info {
+    /* Style for View Report button */
+    background-color: #17a2b8;
+    color: white;
+    /* margin-top: 10px; */ /* Remove if using flexbox */
+  }
+  .case-item .btn-info:hover {
+    opacity: 0.9;
+  }
+  .case-item .case-actions {
+    margin-top: 15px;
+    display: flex; /* Align buttons */
+    gap: 10px; /* Space between buttons */
+    align-items: center; /* Vertically align items if they wrap */
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+  }
+  .case-item .case-actions form {
+    margin: 0; /* Remove default form margin */
+  }
+  .case-item .case-actions .btn {
+    margin-top: 0; /* Override previous margin if needed */
+  }
+</style>
+{% endblock %}

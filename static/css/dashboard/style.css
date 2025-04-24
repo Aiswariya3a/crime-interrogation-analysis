@@ -1,0 +1,212 @@
+:root {
+  --navy-blue: #0a192f; /* Deep navy for primary background */
+  --slate-gray: #1e2a3a; /* Slightly lighter slate for secondary elements */
+  --light-slate: #a8b2d1; /* Light slate for text */
+  --accent-red: #e63946; /* Red for alerts, critical info */
+  --accent-blue: #64ffda; /* Bright blue/teal for interactive elements, highlights */
+  --white: #ccd6f6; /* Off-white for contrast text/elements */
+  --hover-slate: #2a3a4f; /* Hover background for interactive elements */
+
+  --font-sans: "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
+  --font-mono: "Consolas", "Monaco", monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--navy-blue);
+  color: var(--light-slate);
+  line-height: 1.6;
+  font-size: 16px;
+  display: flex; /* Needed for sidebar layout */
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--white);
+  margin-bottom: 0.75em;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--white);
+}
+
+/* Basic Dashboard Layout */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: var(--slate-gray);
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--hover-slate);
+}
+
+.sidebar-header {
+  padding: 0 20px 20px 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--hover-slate);
+}
+
+.sidebar-header h2 {
+  color: var(--accent-blue);
+  font-size: 1.4em;
+  margin-bottom: 0;
+}
+
+.sidebar ul {
+  list-style: none;
+  margin-top: 20px;
+}
+
+.sidebar ul li a {
+  display: block;
+  padding: 12px 20px;
+  color: var(--light-slate);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.sidebar ul li a:hover,
+.sidebar ul li.active a {
+  background-color: var(--hover-slate);
+  color: var(--accent-blue);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-header {
+  background-color: var(--slate-gray);
+  padding: 15px 30px;
+  border-bottom: 1px solid var(--hover-slate);
+  /* Add styles for user profile, notifications here */
+}
+
+.main-header h1 {
+  color: var(--white);
+  font-size: 1.8em;
+  margin-bottom: 0;
+}
+
+.content-area {
+  padding: 30px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Basic Card Styling */
+.card {
+  background-color: var(--slate-gray);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.card h2 {
+  color: var(--accent-blue);
+  margin-top: 0;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--hover-slate);
+  padding-bottom: 10px;
+}
+
+/* Dashboard Grid Layout */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* Basic Table Styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+thead {
+  background-color: var(--hover-slate);
+}
+
+th,
+td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--navy-blue);
+}
+
+th {
+  color: var(--accent-blue);
+  font-weight: 600;
+  font-size: 0.9em;
+  text-transform: uppercase;
+}
+
+tbody tr:hover {
+  background-color: var(--hover-slate);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--hover-slate);
+  }
+
+  .sidebar ul {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 0;
+  }
+
+  .sidebar ul li a {
+    padding: 10px;
+  }
+
+  .sidebar-header {
+    display: none; /* Hide header on small screens for more space */
+  }
+
+  .main-header {
+    padding: 10px 15px;
+  }
+
+  .main-header h1 {
+    font-size: 1.5em;
+  }
+
+  .content-area {
+    padding: 15px;
+  }
+}

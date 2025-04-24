@@ -1,0 +1,156 @@
+{% extends "dashboard/layout.html" %} {% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %} {% block content %}
+<div class="grid-container">
+  <!-- Key Metrics Card -->
+  <div class="card key-metrics">
+    <h2>Key Metrics</h2>
+    <div class="metric-item">
+      <span class="metric-label">Total Cases:</span>
+      <span class="metric-value">{{ data.total_cases }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">Current Analysis Status:</span>
+      <span class="metric-value status-{{ data.current_status.lower() }}"
+        >{{ data.current_status }}</span
+      >
+    </div>
+    <!-- Add more metrics later -->
+    <p class="placeholder-text">
+      (More metrics like average scores require persistent analysis storage.)
+    </p>
+  </div>
+
+  <!-- Case Activity Card -->
+  <div class="card case-activity">
+    <h2>Case Activity</h2>
+    <!-- Placeholder for chart -->
+    <p class="placeholder-text">
+      (Charts showing historical case activity require persistent storage.)
+    </p>
+    <!-- Example: Could show total cases again or a simple list -->
+  </div>
+
+  <!-- Sentiment Analysis Card -->
+  <div class="card sentiment-analysis">
+    <h2>Sentiment Analysis</h2>
+    <!-- Placeholder for chart -->
+    <p class="placeholder-text">
+      (Overall sentiment analysis requires storing and processing AI analysis
+      results across sessions.)
+    </p>
+  </div>
+
+  <!-- Recent Cases Card -->
+  <div class="card recent-cases">
+    <h2>Recent Cases</h2>
+    {% if data.recent_cases %}
+    <table>
+      <thead>
+        <tr>
+          <th>Case Name</th>
+          <th>Created At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for case in data.recent_cases %}
+        <tr>
+          <td>{{ case.name }}</td>
+          <td>
+            {# Attempt to format the date nicely #} {% set created_dt =
+            case.created_at | string_to_datetime %} {{
+            created_dt.strftime('%Y-%m-%d %H:%M') if created_dt else
+            case.created_at }}
+          </td>
+          <td>
+            <a
+              href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+              class="btn btn-xs btn-secondary"
+              >Analyze</a
+            >
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No recent cases found.</p>
+    {% endif %}
+    <a href="{{ url_for('cases') }}" class="view-all-link">View All Cases</a>
+  </div>
+</div>
+{% endblock %} {% block scripts %} {# Jinja filter is now defined in app.py and
+registered globally #}
+
+<style>
+  .grid-container {
+    display: grid;
+    /* Adjust grid columns for potentially 4 items */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .key-metrics .metric-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hover-slate);
+  }
+  .key-metrics .metric-item:last-child {
+    border-bottom: none;
+  }
+  .key-metrics .metric-label {
+    color: var(--light-slate);
+    font-weight: 500;
+  }
+  .key-metrics .metric-value {
+    color: var(--white);
+    font-weight: bold;
+  }
+  .key-metrics .status-idle {
+    color: var(--accent-blue); /* Or another color for idle */
+  }
+  .key-metrics .status-processing {
+    color: var(--accent-red); /* Color for processing status */
+  }
+
+  .placeholder-text {
+    color: #8892b0; /* Lighter slate */
+    font-style: italic;
+    font-size: 0.9em;
+    margin-top: 15px;
+  }
+
+  .recent-cases table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  .recent-cases th,
+  .recent-cases td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--navy-blue);
+    font-size: 0.95em;
+  }
+  .recent-cases th {
+    color: var(--accent-blue);
+    font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+  }
+  .recent-cases tbody tr:hover {
+    background-color: var(--hover-slate);
+  }
+  .recent-cases .btn-xs {
+    padding: 4px 8px;
+    font-size: 0.8em;
+  }
+  .recent-cases .view-all-link {
+    display: block;
+    margin-top: 15px;
+    text-align: right;
+    font-size: 0.9em;
+  }
+</style>
+{% endblock %}

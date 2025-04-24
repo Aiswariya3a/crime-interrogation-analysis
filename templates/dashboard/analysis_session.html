@@ -1,0 +1,344 @@
+{% extends "dashboard/layout.html" %} {% block title %}Analysis Session - {{
+case.name }}{% endblock %} {% block page_title %}Analysis Session: {{ case.name
+}}{% endblock %} {% block content %}
+<div class="analysis-container">
+  <div class="controls card">
+    <h2>Session Controls</h2>
+    <p><strong>Case ID:</strong> {{ case.id }}</p>
+    <button id="startAnalysisBtn" class="btn btn-success">
+      Start Analysis
+    </button>
+    <button id="stopAnalysisBtn" class="btn btn-danger" disabled>
+      Stop Analysis
+    </button>
+    <a
+      href="{{ url_for('download_report', case_id=case.id) }}"
+      id="downloadReportBtn"
+      class="btn btn-info"
+      disabled
+      >Download Report</a
+    >
+    <div id="statusMessage" class="status-message">Status: Idle</div>
+  </div>
+
+  <div class="output-area">
+    <div class="card">
+      <h2>Real-time Emotion Analysis</h2>
+      <canvas id="emotionChart" width="400" height="200"></canvas>
+    </div>
+    <div class="card">
+      <h2>AI Behavioral Analysis Notes</h2>
+      <ul id="behaviorAnalysisList">
+        <li>Waiting for analysis...</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<!-- If using time scale -->
+
+<!-- Session Control and SSE Handling Logic -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const startBtn = document.getElementById("startAnalysisBtn");
+    const stopBtn = document.getElementById("stopAnalysisBtn");
+    const downloadBtn = document.getElementById("downloadReportBtn");
+    const statusMsg = document.getElementById("statusMessage");
+    const behaviorList = document.getElementById("behaviorAnalysisList");
+    const emotionChartCanvas = document.getElementById("emotionChart");
+
+    // Get case ID from the page context (passed from Flask)
+    const currentCaseId = "{{ case.id }}"; // Jinja renders the case ID here
+
+    let eventSource = null;
+    let emotionChart = null;
+    let chartData = {
+      labels: [],
+      datasets: [],
+    };
+    const MAX_CHART_POINTS = 50; // Limit chart points for performance
+
+    function updateStatus(message, isError = false) {
+      statusMsg.textContent = `Status: ${message}`;
+      statusMsg.style.color = isError
+        ? "var(--accent-red)"
+        : "var(--light-slate)";
+    }
+
+    function initializeChart() {
+      if (emotionChart) {
+        emotionChart.destroy(); // Clear previous chart if exists
+      }
+      chartData = { labels: [], datasets: [] }; // Reset data
+      const ctx = emotionChartCanvas.getContext("2d");
+      emotionChart = new Chart(ctx, {
+        type: "line",
+        data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100, // Emotions likely percentages
+              ticks: { color: "var(--light-slate)" },
+              grid: { color: "var(--hover-slate)" },
+            },
+            x: {
+              // type: 'time', // Use if labels are Date objects
+              // time: { unit: 'second' },
+              ticks: {
+                color: "var(--light-slate)",
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 15,
+              },
+              grid: { color: "var(--hover-slate)" },
+            },
+          },
+          plugins: {
+            legend: { labels: { color: "var(--light-slate)" } },
+          },
+          animation: { duration: 200 }, // Faster updates
+        },
+      });
+    }
+
+    function updateChart(newDataPoints) {
+      if (!emotionChart || !newDataPoints || newDataPoints.length === 0) return;
+
+      const emotionColors = {
+        happy: "rgba(255, 206, 86, 0.7)",
+        sad: "rgba(54, 162, 235, 0.7)",
+        angry: "rgba(255, 99, 132, 0.7)",
+        surprise: "rgba(153, 102, 255, 0.7)",
+        fear: "rgba(75, 192, 192, 0.7)",
+        disgust: "rgba(255, 159, 64, 0.7)",
+        neutral: "rgba(201, 203, 207, 0.7)",
+      };
+      const borderColors = Object.fromEntries(
+        Object.entries(emotionColors).map(([k, v]) => [
+          k,
+          v.replace("0.7", "1"),
+        ])
+      );
+
+      newDataPoints.forEach((dataPoint) => {
+        const timestamp = new Date(dataPoint.timestamp).toLocaleTimeString(); // Simple time label
+        chartData.labels.push(timestamp);
+
+        // Initialize datasets if they don't exist
+        if (chartData.datasets.length === 0 && dataPoint.emotions) {
+          Object.keys(dataPoint.emotions).forEach((emotion) => {
+            chartData.datasets.push({
+              label: emotion.charAt(0).toUpperCase() + emotion.slice(1),
+              data: Array(chartData.labels.length - 1).fill(null), // Fill previous points with null
+              borderColor: borderColors[emotion] || "#AAA",
+              backgroundColor: emotionColors[emotion] || "#CCC",
+              fill: false,
+              tension: 0.1,
+            });
+          });
+        }
+
+        // Add new data, ensuring all datasets get a value (or null)
+        chartData.datasets.forEach((dataset) => {
+          const emotionKey = dataset.label.toLowerCase();
+          const score = dataPoint.emotions
+            ? dataPoint.emotions[emotionKey]
+            : null;
+          // Ensure score is numeric or null
+          dataset.data.push(
+            score !== null && !isNaN(parseFloat(score))
+              ? parseFloat(score)
+              : null
+          );
+        });
+
+        // Limit chart data points
+        if (chartData.labels.length > MAX_CHART_POINTS) {
+          chartData.labels.shift();
+          chartData.datasets.forEach((ds) => ds.data.shift());
+        }
+      });
+
+      emotionChart.update();
+    }
+
+    function startEventSource() {
+      if (eventSource) {
+        eventSource.close();
+      }
+      eventSource = new EventSource("/analysis_stream"); // Connect to SSE endpoint
+      updateStatus("Connecting to stream...");
+      behaviorList.innerHTML = "<li>Connecting...</li>"; // Clear previous notes
+
+      eventSource.onopen = () => {
+        updateStatus("Analysis running...");
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        downloadBtn.disabled = true; // Can't download until stopped
+        behaviorList.innerHTML = ""; // Clear connecting message
+      };
+
+      eventSource.onmessage = (event) => {
+        console.log("SSE Message:", event.data);
+        try {
+          const parsedData = JSON.parse(event.data);
+
+          if (parsedData.type === "emotion_update") {
+            // Payload might be a single object or an array
+            const dataPoints = Array.isArray(parsedData.payload)
+              ? parsedData.payload
+              : [parsedData.payload];
+            updateChart(dataPoints);
+          } else if (parsedData.type === "behavior_analysis") {
+            const newItem = document.createElement("li");
+            const analysisTime = new Date(
+              parsedData.payload.timestamp
+            ).toLocaleTimeString();
+            newItem.textContent = `[${analysisTime}] ${parsedData.payload.analysis}`;
+            // Prepend to keep newest on top
+            behaviorList.insertBefore(newItem, behaviorList.firstChild);
+          }
+        } catch (e) {
+          console.error("Failed to parse SSE data:", e, event.data);
+          const newItem = document.createElement("li");
+          newItem.textContent = `Error processing message: ${event.data}`;
+          newItem.style.color = "var(--accent-red)";
+          behaviorList.insertBefore(newItem, behaviorList.firstChild);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        updateStatus("Stream error or disconnected.", true);
+        console.error("SSE Error:", error);
+        eventSource.close();
+        startBtn.disabled = false; // Allow restart attempt
+        stopBtn.disabled = true;
+        downloadBtn.disabled = false; // Allow download if stopped due to error
+      };
+    }
+
+    startBtn.addEventListener("click", async () => {
+      updateStatus("Starting analysis...");
+      startBtn.disabled = true;
+      try {
+        // Send case_id in the request body
+        const response = await fetch("/start_analysis", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // Add auth header if your API requires it (token_required usually handles cookie)
+          },
+          body: JSON.stringify({ case_id: currentCaseId }), // Send case ID
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          // Display specific message if available
+          throw new Error(errorData.message || `HTTP error ${response.status}`);
+        }
+        initializeChart(); // Reset chart on start
+        startEventSource(); // Connect to SSE stream AFTER successful start
+      } catch (error) {
+        updateStatus(`Failed to start: ${error.message}`, true);
+        console.error("Start Analysis Error:", error);
+        startBtn.disabled = false; // Re-enable on failure
+      }
+    });
+
+    stopBtn.addEventListener("click", async () => {
+      updateStatus("Stopping analysis...");
+      stopBtn.disabled = true;
+      if (eventSource) {
+        eventSource.close(); // Close SSE connection first
+        eventSource = null;
+      }
+      try {
+        const response = await fetch("/stop_analysis", { method: "POST" });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.status || `HTTP error ${response.status}`);
+        }
+        updateStatus("Analysis stopped.");
+        startBtn.disabled = false;
+        downloadBtn.disabled = false; // Enable download after stopping
+      } catch (error) {
+        updateStatus(`Failed to stop cleanly: ${error.message}`, true);
+        console.error("Stop Analysis Error:", error);
+        startBtn.disabled = false; // Allow restart attempt even if stop failed
+        downloadBtn.disabled = false; // Still allow download attempt
+      }
+    });
+
+    // Initialize chart on page load
+    initializeChart();
+  });
+</script>
+<style>
+  .analysis-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  .controls .btn {
+    padding: 8px 15px;
+  }
+  .btn-success {
+    background-color: #28a745;
+    color: white;
+  }
+  .btn-danger {
+    background-color: var(--accent-red);
+    color: white;
+  }
+  .btn-info {
+    background-color: #17a2b8;
+    color: white;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .status-message {
+    margin-left: auto; /* Pushes status to the right */
+    font-style: italic;
+  }
+  .output-area {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+  }
+  #behaviorAnalysisList {
+    list-style: none;
+    padding: 0;
+    max-height: 300px; /* Limit height */
+    overflow-y: auto; /* Add scrollbar */
+    background-color: var(--navy-blue); /* Match input background */
+    border: 1px solid var(--hover-slate);
+    border-radius: 4px;
+    padding: 10px;
+  }
+  #behaviorAnalysisList li {
+    padding: 5px 0;
+    border-bottom: 1px solid var(--hover-slate);
+    font-size: 0.9em;
+  }
+  #behaviorAnalysisList li:last-child {
+    border-bottom: none;
+  }
+  #emotionChart {
+    max-height: 350px; /* Control chart height */
+  }
+</style>
+{% endblock %}
