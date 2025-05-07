@@ -33,11 +33,6 @@
           >
             <a href="{{ url_for('interrogations') }}">Interrogations</a>
           </li>
-          <li
-            class="{% if request.path == url_for('analytics') %}active{% endif %}"
-          >
-            <a href="{{ url_for('analytics') }}">Analytics</a>
-          </li>
           <!-- Add other navigation links like Settings, Logout, etc. -->
           <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>

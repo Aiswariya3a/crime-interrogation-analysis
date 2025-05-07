@@ -1,8 +1,87 @@
-{% extends "dashboard/layout.html" %} {% block title %}Interrogations{% endblock
-%} {% block page_title %}Interrogation Records{% endblock %} {% block content %}
-<div class="card">
-  <h2>Interrogation Records</h2>
-  <p>Browse records, view truthfulness scores, and access transcripts here.</p>
-  <!-- Add table or list component -->
+{% extends "dashboard/layout.html" %} {% block title %}Interrogation
+Records{% endblock %} {% block page_title %}Interrogation Records{% endblock
+%} {% block content %}
+<div class="container-fluid px-4">
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-table me-1"></i>
+    </div>
+    <div class="card-body">
+      {% if cases %}
+      <div class="table-responsive">
+        <table
+          class="table table-bordered table-hover"
+          id="casesTable"
+          width="100%"
+          cellspacing="0"
+        >
+          <thead>
+            <tr>
+              <th>Case Name</th>
+              <th>User ID</th>
+              <th>Created On</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for case in cases %}
+            <tr>
+              <td>{{ case.name }}</td>
+              <td><small>{{ case.user_id }}</small></td>
+              <td>
+                {% set dt = case.created_at | string_to_datetime %} {% if dt %}
+                {{ dt.strftime('%Y-%m-%d %H:%M:%S') }} {% else %} {{
+                case.created_at }} (Could not parse date) {% endif %}
+              </td>
+              <td>
+                <span
+                  class="badge {% if case.status == 'New' %}bg-primary {% elif case.status == 'Processing' %}bg-warning text-dark {% elif case.status == 'Analyzed - Report Ready' %}bg-success {% else %}bg-secondary {% endif %}"
+                >
+                  {{ case.status }}
+                </span>
+              </td>
+              <td>
+
+                {% if case.status == 'Analyzed - Report Ready' %}
+                <a
+                  href="{{ url_for('download_report', case_id=case.id) }}"
+                  class="btn btn-sm btn-success"
+                  title="Download Report"
+                >
+                  <i class="fas fa-download"></i> Download Report
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-info" role="alert">
+        No interrogation records found across all users.
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
-{% endblock %}
+
+{# Optional: Add DataTables for sorting/pagination if you have many records #}
+{# Link to DataTables CSS (example) #} {#
+<link
+  href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css"
+  rel="stylesheet"
+/>
+#} {# Link to DataTables JS (example) #} {#
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+#} {#
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+#} {#
+<script>
+  $(document).ready(function () {
+    $("#casesTable").DataTable();
+  });
+</script>
+#} {% endblock %}

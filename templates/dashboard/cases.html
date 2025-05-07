@@ -23,66 +23,55 @@ content %}
     {% for case in cases %}
     <li class="case-item">
       <h3>{{ case.name }}</h3>
-      <p><strong>Bio:</strong> {{ case.bio if case.bio else 'N/A' }}</p>
-      {% set current_status = case.status | default('Unknown') %} {# Get status
-      safely #}
+      {% set status_class = case.status | lower | replace(' ', '-') |
+      replace('/', '') %}
       <p>
         <strong>Status:</strong>
-        <span class="status-{{ current_status | lower }}"
-          >{{ current_status }}</span
+        <span class="status-badge status-{{ status_class }}"
+          >{{ case.status }}</span
         >
       </p>
+      <p><strong>Bio:</strong> {{ case.bio if case.bio else 'N/A' }}</p>
+      {% set dt = case.created_at | string_to_datetime %}
       <p>
         <small
-          >Created: {% set dt = case.created_at | string_to_datetime %}{{
-          dt.strftime('%Y-%m-%d %H:%M') if dt else 'N/A' }}</small
+          >Created: {{ dt.strftime('%Y-%m-%d %H:%M') if dt else case.created_at
+          }}</small
         >
       </p>
 
-      <div class="case-actions">
-        {# Wrap actions #} {# Analyze/Re-analyze/View Button #} {% if
-        current_status == 'Analyzed' %}
-        <a
-          href="{{ url_for('download_report', case_id=case.id) }}"
-          class="btn btn-info"
-          >View Report</a
-        >
-        <a
-          href="{{ url_for('start_case_analysis', case_id=case.id) }}"
-          class="btn btn-secondary"
-          >Re-analyze Session</a
-        >
-        {% elif current_status == 'Closed' %}
-        <a
-          href="{{ url_for('start_case_analysis', case_id=case.id) }}"
-          class="btn btn-secondary"
-          >Re-analyze Session</a
-        >
-        {# Optionally show View Report link even if closed #}
-        <a
-          href="{{ url_for('download_report', case_id=case.id) }}"
-          class="btn btn-info"
-          >View Last Report</a
-        >
-        {% else %} {# Default to 'New' or 'Unknown' #}
-        <a
-          href="{{ url_for('start_case_analysis', case_id=case.id) }}"
-          class="btn btn-secondary"
-          >Start Analysis Session</a
-        >
-        {% endif %} {# Close Case Button (as a form) #} {% if current_status !=
-        'Closed' %}
-        <form
-          method="POST"
-          action="{{ url_for('update_case_status', case_id=case.id) }}"
-          style="display: inline-block; margin-left: 10px"
-        >
-          <input type="hidden" name="status" value="Closed" />
-          <button type="submit" class="btn btn-warning">Close Case</button>
-        </form>
-        {% endif %}
-        <!-- Add Delete button later if needed -->
-      </div>
+      {% if case.status == 'Analyzed - Report Ready' %}
+      <a
+        href="{{ url_for('download_report', case_id=case.id) }}"
+        class="btn btn-info"
+        >View Report</a
+      >
+      <a
+        href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+        class="btn btn-secondary btn-reanalyze"
+        >Re-Analyze</a
+      >
+      {% elif case.status == 'Processing' %}
+      <span class="processing-indicator">Analysis in progress...</span>
+      <a
+        href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+        class="btn btn-secondary btn-view-analysis"
+        >View Session</a
+      >
+      <button
+        type="button"
+        class="btn btn-danger btn-stop-analysis"
+        data-case-id="{{ case.id }}"
+      >
+        Stop Analysis
+      </button>
+      {% else %}
+      <a
+        href="{{ url_for('start_case_analysis', case_id=case.id) }}"
+        class="btn btn-secondary"
+        >Start Analysis Session</a
+      >
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -125,7 +114,13 @@ content %}
     text-decoration: none;
     display: inline-block;
     text-align: center;
+    margin-right: 5px;
+    margin-top: 10px;
   }
+  .btn:last-child {
+    margin-right: 0;
+  }
+
   .btn-primary {
     background-color: var(--accent-blue);
     color: var(--navy-blue);
@@ -137,7 +132,6 @@ content %}
   .btn-secondary {
     background-color: var(--hover-slate);
     color: var(--accent-blue);
-    margin-top: 10px;
   }
   .btn-secondary:hover {
     background-color: var(--slate-gray);
@@ -166,52 +160,125 @@ content %}
     color: #8892b0; /* Lighter slate text color */
   }
 
-  /* Add styles for status */
-  .case-item .status-new {
-    color: var(--accent-blue); /* Or another color for 'New' */
+  /* Status Badge Styling */
+  .status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
     font-weight: bold;
+    color: white;
+    display: inline-block;
+    text-transform: uppercase;
+    line-height: 1;
+    vertical-align: middle;
   }
-  .case-item .status-analyzed {
-    color: #28a745; /* Green for 'Analyzed' */
-    font-weight: bold;
+
+  .status-new {
+    background-color: #6c757d; /* Gray */
   }
-  .case-item .status-closed {
-    color: #dc3545; /* Reddish color for 'Closed' */
-    font-weight: bold;
-  }
-  .case-item .status-unknown {
-    color: #8892b0; /* Lighter slate for unknown */
-    font-style: italic;
-  }
-  .case-item .btn-warning {
-    /* Style for Close Case button */
-    background-color: #ffc107;
+  .status-processing {
+    background-color: #ffc107; /* Yellow */
     color: #333;
   }
-  .case-item .btn-warning:hover {
-    background-color: #e0a800;
+  .status-analyzed-report-ready {
+    background-color: #6c757d; /* Green */
   }
-  .case-item .btn-info {
-    /* Style for View Report button */
+  /* Add more statuses as needed */
+
+  .processing-indicator {
+    font-style: italic;
+    color: #ffc107; /* Match processing badge */
+    margin-right: 10px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-top: 10px;
+  }
+
+  .btn-info {
     background-color: #17a2b8;
     color: white;
-    /* margin-top: 10px; */ /* Remove if using flexbox */
   }
-  .case-item .btn-info:hover {
-    opacity: 0.9;
+  .btn-info:hover {
+    background-color: #138496;
   }
-  .case-item .case-actions {
-    margin-top: 15px;
-    display: flex; /* Align buttons */
-    gap: 10px; /* Space between buttons */
-    align-items: center; /* Vertically align items if they wrap */
-    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+  .btn-reanalyze {
+    /* margin-left: 10px; */
   }
-  .case-item .case-actions form {
-    margin: 0; /* Remove default form margin */
+  .btn-view-analysis {
+    /* Styling if needed */
   }
-  .case-item .case-actions .btn {
-    margin-top: 0; /* Override previous margin if needed */
+  .btn-danger {
+    background-color: #dc3545; /* Bootstrap danger color */
+    color: white;
+  }
+  .btn-danger:hover {
+    background-color: #c82333; /* Darker danger color */
   }
 </style>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const stopButtons = document.querySelectorAll(".btn-stop-analysis");
+    stopButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        if (
+          confirm(
+            "Are you sure you want to stop the current analysis? This action will affect the case marked as 'Processing'."
+          )
+        ) {
+          // Disable button to prevent multiple clicks
+          this.disabled = true;
+          this.textContent = "Stopping...";
+
+          fetch("{{ url_for('stop_analysis') }}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => {
+              const buttonRef = this;
+              if (!response.ok) {
+                return response
+                  .json()
+                  .then((errData) => {
+                    throw new Error(
+                      errData.message || `Server error: ${response.status}`
+                    );
+                  })
+                  .catch(() => {
+                    throw new Error(`Server error: ${response.status}`);
+                  });
+              }
+              return response.json();
+            })
+            .then((data) => {
+              if (data.status === "stopped") {
+                alert(
+                  "Analysis stopped successfully. The page will now reload."
+                );
+                window.location.reload();
+              } else if (data.status === "not_running") {
+                alert(
+                  "Analysis was already stopped or not running. The page will reload."
+                );
+                window.location.reload();
+              } else {
+                alert(
+                  data.message || "Could not stop analysis. Please try again."
+                );
+                this.disabled = false;
+                this.textContent = "Stop Analysis";
+              }
+            })
+            .catch((error) => {
+              console.error("Error stopping analysis:", error);
+              alert("Error stopping analysis: " + error.message);
+              this.disabled = false;
+              this.textContent = "Stop Analysis";
+            });
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

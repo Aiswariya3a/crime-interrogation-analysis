@@ -50,9 +50,6 @@ case.name }}{% endblock %} {% block page_title %}Analysis Session: {{ case.name
     const behaviorList = document.getElementById("behaviorAnalysisList");
     const emotionChartCanvas = document.getElementById("emotionChart");
 
-    // Get case ID from the page context (passed from Flask)
-    const currentCaseId = "{{ case.id }}"; // Jinja renders the case ID here
-
     let eventSource = null;
     let emotionChart = null;
     let chartData = {
@@ -226,20 +223,27 @@ case.name }}{% endblock %} {% block page_title %}Analysis Session: {{ case.name
     startBtn.addEventListener("click", async () => {
       updateStatus("Starting analysis...");
       startBtn.disabled = true;
+      // Get case ID from a data attribute or the page context (assuming 'case' is passed to template)
+      const caseId = "{{ case.id }}"; // Get case ID from template variable
+
       try {
-        // Send case_id in the request body
         const response = await fetch("/start_analysis", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            // Add auth header if your API requires it (token_required usually handles cookie)
+            // Include Authorization header if needed by your token_required decorator for POST
+            // 'Authorization': `Bearer ${localStorage.getItem('firebaseToken')}`
           },
-          body: JSON.stringify({ case_id: currentCaseId }), // Send case ID
+          body: JSON.stringify({ case_id: caseId }), // Send case_id in body
         });
         if (!response.ok) {
           const errorData = await response.json();
-          // Display specific message if available
-          throw new Error(errorData.message || `HTTP error ${response.status}`);
+          // Use errorData.message if available from server response
+          throw new Error(
+            errorData.message ||
+              errorData.status ||
+              `HTTP error ${response.status}`
+          );
         }
         initializeChart(); // Reset chart on start
         startEventSource(); // Connect to SSE stream AFTER successful start

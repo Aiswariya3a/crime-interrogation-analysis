@@ -1,55 +1,95 @@
 {% extends "dashboard/layout.html" %} {% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard Overview{% endblock %} {% block content %}
 <div class="grid-container">
-  <!-- Key Metrics Card -->
+  <!-- Key Metrics & Live Status Card -->
   <div class="card key-metrics">
-    <h2>Key Metrics</h2>
+    <h2>Live Status & Key Metrics</h2>
     <div class="metric-item">
-      <span class="metric-label">Total Cases:</span>
-      <span class="metric-value">{{ data.total_cases }}</span>
+      <span class="metric-label">Current System Status:</span>
+      <span
+        class="metric-value status-{{ data.live_status_message.lower().split(':')[0] }}"
+      >
+        {{ data.live_status_message }}
+      </span>
     </div>
-    <div class="metric-item">
-      <span class="metric-label">Current Analysis Status:</span>
-      <span class="metric-value status-{{ data.current_status.lower() }}"
-        >{{ data.current_status }}</span
+    {% if data.is_processing and data.active_case_details_for_current_user %}
+    <div class="metric-item info-accent">
+      <span class="metric-label">You are analyzing:</span>
+      <span class="metric-value"
+        >{{ data.active_case_details_for_current_user.name }}</span
       >
     </div>
-    <!-- Add more metrics later -->
-    <p class="placeholder-text">
-      (More metrics like average scores require persistent analysis storage.)
+    <p class="action-link">
+      <a
+        href="{{ url_for('start_case_analysis', case_id=data.active_case_details_for_current_user.id) }}"
+        class="btn btn-sm btn-primary"
+      >
+        Go to Analysis Page
+      </a>
     </p>
+    {% elif data.is_processing %}
+    <div class="metric-item info-accent">
+      <span class="metric-label">Note:</span>
+      <span class="metric-value">An analysis is active on the system.</span>
+    </div>
+    {% endif %}
   </div>
 
-  <!-- Case Activity Card -->
-  <div class="card case-activity">
-    <h2>Case Activity</h2>
-    <!-- Placeholder for chart -->
-    <p class="placeholder-text">
-      (Charts showing historical case activity require persistent storage.)
-    </p>
-    <!-- Example: Could show total cases again or a simple list -->
+  <!-- Current User Summary Card -->
+  <div class="card user-summary">
+    <h2>Your Cases</h2>
+    <div class="metric-item">
+      <span class="metric-label">Your Total Cases:</span>
+      <span class="metric-value">{{ data.total_current_user_cases }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">Processing by You:</span>
+      <span class="metric-value">{{ data.current_user_processing_count }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">Analyzed by You (Ready Reports):</span>
+      <span class="metric-value">{{ data.current_user_analyzed_count }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">New Cases by You:</span>
+      <span class="metric-value">{{ data.current_user_new_count }}</span>
+    </div>
   </div>
 
-  <!-- Sentiment Analysis Card -->
-  <div class="card sentiment-analysis">
-    <h2>Sentiment Analysis</h2>
-    <!-- Placeholder for chart -->
-    <p class="placeholder-text">
-      (Overall sentiment analysis requires storing and processing AI analysis
-      results across sessions.)
-    </p>
+  <!-- System-Wide Summary Card -->
+  <div class="card system-summary">
+    <h2>Overall Case Metrics</h2>
+    <div class="metric-item">
+      <span class="metric-label">Total Users with Cases:</span>
+      <span class="metric-value">{{ data.total_system_users }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">Total Cases in System:</span>
+      <span class="metric-value">{{ data.total_system_cases }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">Currently Processing (All Users):</span>
+      <span class="metric-value">{{ data.total_system_processing_count }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">Analyzed Reports (All Users):</span>
+      <span class="metric-value">{{ data.total_system_analyzed_count }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">New Cases (All Users):</span>
+      <span class="metric-value">{{ data.total_system_new_count }}</span>
+    </div>
   </div>
 
-  <!-- Recent Cases Card -->
+  <!-- Recent Cases Card (for current user) -->
   <div class="card recent-cases">
-    <h2>Recent Cases</h2>
+    <h2>Your Recent Cases</h2>
     {% if data.recent_cases %}
     <table>
       <thead>
         <tr>
           <th>Case Name</th>
           <th>Created At</th>
-          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -62,13 +102,6 @@
             created_dt.strftime('%Y-%m-%d %H:%M') if created_dt else
             case.created_at }}
           </td>
-          <td>
-            <a
-              href="{{ url_for('start_case_analysis', case_id=case.id) }}"
-              class="btn btn-xs btn-secondary"
-              >Analyze</a
-            >
-          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -76,7 +109,7 @@
     {% else %}
     <p>No recent cases found.</p>
     {% endif %}
-    <a href="{{ url_for('cases') }}" class="view-all-link">View All Cases</a>
+    <a href="{{ url_for('interrogations') }}" class="view-all-link">View All Cases</a>
   </div>
 </div>
 {% endblock %} {% block scripts %} {# Jinja filter is now defined in app.py and
@@ -107,11 +140,42 @@ registered globally #}
     color: var(--white);
     font-weight: bold;
   }
-  .key-metrics .status-idle {
+  .key-metrics .metric-value .status-idle {
     color: var(--accent-blue); /* Or another color for idle */
   }
-  .key-metrics .status-processing {
+  .key-metrics .metric-value .status-processing {
     color: var(--accent-red); /* Color for processing status */
+  }
+  .key-metrics .info-accent .metric-label,
+  .key-metrics .info-accent .metric-value {
+    color: var(--accent-yellow); /* Or another distinct color for info */
+    font-size: 0.9em;
+  }
+  .key-metrics .action-link {
+    text-align: right;
+    margin-top: 5px;
+  }
+
+  .user-summary .metric-item,
+  .system-summary .metric-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hover-slate);
+  }
+  .user-summary .metric-item:last-child,
+  .system-summary .metric-item:last-child {
+    border-bottom: none;
+  }
+  .user-summary .metric-label,
+  .system-summary .metric-label {
+    color: var(--light-slate);
+    font-weight: 500;
+  }
+  .user-summary .metric-value,
+  .system-summary .metric-value {
+    color: var(--white);
+    font-weight: bold;
   }
 
   .placeholder-text {

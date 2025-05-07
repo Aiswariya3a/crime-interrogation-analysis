@@ -1,6 +1,7 @@
 import os
 import cv2
-from flask import Flask, render_template, Response, jsonify, request, stream_with_context, make_response
+from flask import Flask,url_for, redirect,render_template, Response, jsonify, request, stream_with_context, make_response
+
 from deepface import DeepFace
 import threading
 import time
@@ -11,8 +12,6 @@ import datetime
 import json
 import google.generativeai as genai # Import Gemini library
 from io import BytesIO
-<<<<<<< Updated upstream
-=======
 import firebase_admin 
 from firebase_admin import credentials, auth
 
@@ -24,7 +23,6 @@ from jinja2 import Environment, select_autoescape # Added for Jinja filter
 import os
 import json
 import threading
->>>>>>> Stashed changes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -114,7 +112,7 @@ analysis_lock = threading.Lock()
 is_processing = False # Flag to indicate if analysis is running
 frame_skip = 5 # Analyze every Nth frame to reduce load
 last_frame_analyzed = None # Store the latest analyzed frame for display (optional)
-current_analyzing_case_id = None # Track the case ID being analyzed globally
+current_analysis_case_id = None # Track the case ID for the active analysis
 # --- Constants for Gemini Analysis ---
 GEMINI_ANALYSIS_INTERVAL_SECONDS = 15 # How often to call Gemini API
 GEMINI_DATA_WINDOW_SECONDS = 60 # How much past data to send to Gemini
@@ -254,13 +252,16 @@ def capture_and_analyze():
                 if results and isinstance(results, list) and results[0]: # Check if list has items
                     first_face_result = results[0]
                     dominant_emotion = first_face_result.get('dominant_emotion', 'Unknown') # Provide default
-                    emotions = first_face_result.get('emotion', {}) # Provide default
+                    emotions_from_deepface = first_face_result.get('emotion', {}) # Provide default
                     timestamp = datetime.datetime.now().isoformat() # Use ISO format for consistency
+
+                    # Convert emotion scores to standard Python floats for JSON serialization
+                    sanitized_emotions = {k: float(v) for k, v in emotions_from_deepface.items()}
 
                     new_data_point = {
                         "timestamp": timestamp,
                         "dominant_emotion": dominant_emotion,
-                        "emotions": emotions # Store all emotion scores
+                        "emotions": sanitized_emotions # Store sanitized emotion scores
                     }
                     with analysis_lock:
                         analysis_data.append(new_data_point)
@@ -376,15 +377,6 @@ def generate_analysis_stream():
         # Optional cleanup specific to this generator if needed
         app.logger.info("Stopped sending SSE data for this client.")
 
-<<<<<<< Updated upstream
-
-# --- Routes ---
-@app.route('/')
-def index():
-    """Serves the main HTML page."""
-    return render_template('index_realtime.html') # We'll create this new template
-
-=======
 
 # --- Authentication Middleware --- (Modified to pass user_id)
 def token_required(f):
@@ -431,7 +423,7 @@ def api_token_required(f):
             app.logger.warning("API request missing or invalid Bearer token.")
             return jsonify({'message': 'Authorization token is missing or invalid!'}), 401
 
-        token = token.split(' ')[1]
+            token = token.split(' ')[1]
         try:
             decoded_token = auth.verify_id_token(token)
             # Add user info to request context or pass as args if needed
@@ -458,33 +450,72 @@ def dashboard(user_id):
     """Renders the main dashboard overview page."""
     user_specific_cases = user_cases.get(user_id, [])
 
-    # --- Calculate Metrics ---
-    total_cases = len(user_specific_cases)
+    # --- Metrics for Current User ---
+    total_current_user_cases = len(user_specific_cases)
+    current_user_processing_count = sum(1 for case in user_specific_cases if case.get('status') == 'Processing')
+    current_user_analyzed_count = sum(1 for case in user_specific_cases if case.get('status') == 'Analyzed - Report Ready')
+    current_user_new_count = sum(1 for case in user_specific_cases if case.get('status') == 'New')
 
-    # Get recent cases (sort by creation date, newest first)
+    # --- Metrics for All Users (System-Wide) ---
+    total_system_users = len(user_cases)
+    all_cases_flat = [case for cases_list in user_cases.values() for case in cases_list]
+    total_system_cases = len(all_cases_flat)
+    total_system_processing_count = sum(1 for case in all_cases_flat if case.get('status') == 'Processing')
+    total_system_analyzed_count = sum(1 for case in all_cases_flat if case.get('status') == 'Analyzed - Report Ready')
+    total_system_new_count = sum(1 for case in all_cases_flat if case.get('status') == 'New')
+
+    # Get recent cases for the current user
     try:
-        # Sort safely, handling potential errors if created_at is missing/invalid
         recent_cases = sorted(
             user_specific_cases,
-            key=lambda x: datetime.datetime.fromisoformat(x.get('created_at', '1970-01-01T00:00:00')), # Default to old date on error
+            key=lambda x: datetime.datetime.fromisoformat(x.get('created_at', '1970-01-01T00:00:00')),
             reverse=True
-        )[:5] # Get top 5
+        )[:5]
     except Exception as e:
         app.logger.warning(f"Error sorting cases for user {user_id}: {e}")
-        recent_cases = user_specific_cases[:5] # Fallback to first 5 unsorted
+        recent_cases = user_specific_cases[:5]
 
-    # Get current analysis status (using global flag)
-    current_status = "Processing" if is_processing else "Idle"
+    # --- Get Current Live Analysis Status ---
+    active_case_details = None
+    live_status_message = "Idle"
+    global is_processing, current_analysis_case_id # Ensure we use the global ones
+
+    if is_processing and current_analysis_case_id:
+        active_case_details = next((c for c in user_specific_cases if c['id'] == current_analysis_case_id), None)
+        if active_case_details:
+            live_status_message = f"Processing: {active_case_details.get('name', 'Unknown Case')}"
+        else:
+            # If the processing case doesn't belong to the current user, or if it's an admin view (not implemented yet)
+            # For now, just indicate something is processing.
+            # We might need to fetch the case name from all_cases_flat if it's a system-wide view.
+            # However, `current_analysis_case_id` is singular, implying one active analysis globally.
+            generic_active_case = next((c for c in all_cases_flat if c['id'] == current_analysis_case_id), None)
+            if generic_active_case:
+                live_status_message = f"Processing: {generic_active_case.get('name', 'Unknown Case')} (by user {generic_active_case.get('user_id')})"
+            else:
+                live_status_message = f"Processing: Active Analysis (ID: {current_analysis_case_id})"
+            app.logger.info(f"Active case ID {current_analysis_case_id} is processing, but not for current user {user_id} or details not found in user's list.")
 
     # --- Prepare data for template ---
     dashboard_data = {
-        'total_cases': total_cases,
-        'current_status': current_status,
+        'total_current_user_cases': total_current_user_cases,
+        'current_user_processing_count': current_user_processing_count,
+        'current_user_analyzed_count': current_user_analyzed_count,
+        'current_user_new_count': current_user_new_count,
+
+        'total_system_users': total_system_users,
+        'total_system_cases': total_system_cases,
+        'total_system_processing_count': total_system_processing_count,
+        'total_system_analyzed_count': total_system_analyzed_count,
+        'total_system_new_count': total_system_new_count,
+
+        'live_status_message': live_status_message,
+        'is_processing': is_processing, # Pass the boolean flag for live status
+        'active_case_details_for_current_user': active_case_details, # Pass the active case IF it belongs to current user
+
         'recent_cases': recent_cases
-        # Add more metrics here later (e.g., avg scores if data is stored)
     }
 
-    # Pass the calculated data to the template context
     return render_template('dashboard/dashboard.html', data=dashboard_data)
 
 # --- Case Management Routes --- (New and Updated)
@@ -520,7 +551,7 @@ def create_case(user_id):
         if user_id not in user_cases:
             user_cases[user_id] = []
         user_cases[user_id].append(new_case)
-        app.logger.info(f"Case '{case_name}' (Status: New) created for user {user_id}") # Log status
+        app.logger.info(f"Case '{case_name}' created for user {user_id}")
 
     save_cases_to_json() # Save the updated data to the file
 
@@ -540,44 +571,32 @@ def start_case_analysis(user_id, case_id):
     # Render a new template dedicated to the analysis session
     return render_template('dashboard/analysis_session.html', case=case)
 
-@app.route('/cases/<case_id>/update_status', methods=['POST'])
-@token_required
-def update_case_status(user_id, case_id):
-    """Updates the status of a specific case."""
-    new_status = request.form.get('status')
-    if not new_status or new_status not in ['Closed', 'New']: # Add allowed statuses here
-        app.logger.warning(f"Invalid status update requested for case {case_id} by user {user_id}: {new_status}")
-        return "Invalid status provided", 400
-
-    case_updated = False
-    with file_lock:
-        if user_id in user_cases:
-            for case in user_cases[user_id]:
-                if case['id'] == case_id:
-                    old_status = case.get('status', 'Unknown')
-                    case['status'] = new_status
-                    app.logger.info(f"Case {case_id} status changed from '{old_status}' to '{new_status}' by user {user_id}.")
-                    case_updated = True
-                    break
-            if case_updated:
-                save_cases_to_json()
-        else:
-             app.logger.warning(f"User {user_id} not found when trying to update status for case {case_id}.")
-
-    if not case_updated:
-         app.logger.warning(f"Case {case_id} not found for user {user_id} during status update.")
-         # Handle case not found error (e.g., flash message or redirect with error)
-         pass # For now, just redirect back
-
-    return redirect(url_for('cases'))
-
 # --- Other Dashboard Routes --- (Updated signatures)
 @app.route('/interrogations')
 @token_required
 def interrogations(user_id):
-    """Renders the interrogations records page."""
-    # We might use user_id later here
-    return render_template('dashboard/interrogations.html')
+    """Renders the interrogations records page, showing all cases from all users."""
+    
+    all_cases_list = []
+    # Iterate through all users and their cases
+    for u_id, cases_for_user in user_cases.items():
+        for case in cases_for_user:
+            # Ensure user_id is part of the case dict, which it should be from create_case
+            # If not, you might want to add it here: case['owner_id'] = u_id
+            all_cases_list.append(case)
+
+    # Sort all cases by creation date, newest first (optional, but good for display)
+    try:
+        sorted_cases = sorted(
+            all_cases_list,
+            key=lambda x: datetime.datetime.fromisoformat(x.get('created_at', '1970-01-01T00:00:00')),
+            reverse=True
+        )
+    except Exception as e:
+        app.logger.warning(f"Error sorting all cases for interrogations page: {e}")
+        sorted_cases = all_cases_list # Fallback to unsorted
+
+    return render_template('dashboard/interrogations.html', cases=sorted_cases, view_all_users=True)
 
 @app.route('/analytics')
 @token_required
@@ -666,110 +685,115 @@ def logout():
     return response
 
 # --- Real-time Analysis API Routes --- (Updated signatures)
->>>>>>> Stashed changes
 @app.route('/start_analysis', methods=['POST'])
 @token_required
 def start_analysis(user_id):
     """Starts the video capture and analysis thread for a specific case."""
-    global video_thread, is_processing, analysis_data, behavior_analysis_history, capture, current_analyzing_case_id
+    global video_thread, is_processing, analysis_data, behavior_analysis_history, capture
+    global current_analysis_case_id # Access the global tracker
 
-    # Get case_id from the request data
+    # --- Get Case ID from request ---
     request_data = request.get_json()
     case_id = request_data.get('case_id') if request_data else None
 
     if not case_id:
-         app.logger.error(f"Start analysis request missing case_id from user {user_id}.")
-         return jsonify({"status": "error", "message": "Missing case_id"}), 400
+        app.logger.error("'/start_analysis' called without case_id.")
+        return jsonify({"status": "error", "message": "Missing case_id"}), 400
 
-    app.logger.info(f"'/start_analysis' endpoint called by user: {user_id} for case: {case_id}")
+    app.logger.info(f"'/start_analysis' called by user: {user_id} for case: {case_id}")
 
     if is_processing:
-        # Optional: Check if it's the same case trying to restart?
-        # For now, just prevent multiple concurrent analyses globally.
-        app.logger.warning(f"Analysis already in progress (current case: {current_analyzing_case_id}). Cannot start new analysis for {case_id}.")
-        return jsonify({"status": "already_running", "message": f"Analysis already running for case {current_analyzing_case_id or 'unknown'}"}), 400
+        if case_id == current_analysis_case_id:
+             app.logger.warning(f"Analysis already running for case {case_id}.")
+             return jsonify({"status": "already_running", "message": "Analysis already running for this case."}), 400
+        else:
+             app.logger.warning(f"Another analysis (case {current_analysis_case_id}) is already running.")
+             return jsonify({"status": "already_running", "message": f"Another analysis is already running (Case: {current_analysis_case_id}). Stop it first."}), 409 # Conflict
 
-    # Reset global data and set current case
+    # --- Update Case Status to Processing ---
+    case_updated = False
+    with file_lock:
+        if user_id in user_cases and any(c['id'] == case_id for c in user_cases[user_id]):
+            for case in user_cases[user_id]:
+                if case['id'] == case_id:
+                    case['status'] = 'Processing'
+                    case_updated = True
+                    break
+        else:
+             app.logger.error(f"Case {case_id} not found for user {user_id} during start.")
+             return jsonify({"status": "error", "message": "Case not found or access denied"}), 404
+
+    if case_updated:
+        save_cases_to_json() # Save status update
+    # ------------------------------------
+
+    # Reset global data for the new session
     with analysis_lock:
         analysis_data = []
         behavior_analysis_history = []
         last_frame_analyzed = None
-        current_analyzing_case_id = case_id # Store the ID of the case being analyzed
-        app.logger.info(f"Global analysis data cleared. Starting analysis for case: {current_analyzing_case_id}")
+        app.logger.info("Global analysis data cleared for new session.")
 
+    current_analysis_case_id = case_id # Track the active case
     is_processing = True
-    # Ensure any previous capture object is released before starting new thread
     if capture:
          capture.release()
          capture = None
          app.logger.info("Released previous capture object before starting new analysis.")
 
-    # Start the capture thread
     video_thread = threading.Thread(target=capture_and_analyze, daemon=True)
     video_thread.start()
-    app.logger.info("Analysis thread started.")
+    app.logger.info(f"Analysis thread started for case {case_id}.")
     return jsonify({"status": "started"})
 
 @app.route('/stop_analysis', methods=['POST'])
 @token_required
 def stop_analysis(user_id):
-    """Stops the video capture and analysis thread and updates case status."""
-    global is_processing, video_thread, capture, current_analyzing_case_id
+    """Stops the video capture and analysis thread."""
+    global is_processing, video_thread, capture, current_analysis_case_id # Access tracker
 
-    app.logger.info(f"'/stop_analysis' endpoint called by user: {user_id}. Current analyzing case: {current_analyzing_case_id}")
+    active_case_id = current_analysis_case_id # Get the ID of the case that was running
+
+    app.logger.info(f"'/stop_analysis' called by user: {user_id} for case: {active_case_id}")
 
     if not is_processing:
         app.logger.warning("Analysis not running.")
-        # Clear potentially stale case ID if stop is called erroneously
-        current_analyzing_case_id = None
+        current_analysis_case_id = None
         return jsonify({"status": "not_running"}), 400
 
-    # Store case ID before clearing global state
-    case_id_to_update = current_analyzing_case_id
-
     is_processing = False # Signal the thread to stop
-    current_analyzing_case_id = None # Clear the global tracker
 
-    # Wait briefly for the thread to finish cleanly
+    # --- Stop the thread ---
     if video_thread and video_thread.is_alive():
-        video_thread.join(timeout=2.0) # Wait max 2 seconds
+        video_thread.join(timeout=2.0)
         if video_thread.is_alive():
-             app.logger.warning("Analysis thread did not stop gracefully within timeout.")
-             # Force release capture if thread is stuck (use cautiously)
-             if capture:
-                 capture.release()
-                 capture = None
-                 app.logger.warning("Force released capture object.")
+             app.logger.warning(f"Analysis thread for case {active_case_id} did not stop gracefully.")
+             if capture: capture.release(); capture = None; app.logger.warning("Force released capture object.")
         else:
-             app.logger.info("Analysis thread stopped successfully.")
-
-    video_thread = None # Clear thread variable
-    # Ensure capture is released if not done by thread
-    if capture:
-         capture.release()
-         capture = None
-         app.logger.info("Ensured capture object released after stopping analysis.")
+             app.logger.info(f"Analysis thread stopped successfully for case {active_case_id}.")
+    video_thread = None
+    if capture: capture.release(); capture = None; app.logger.info("Ensured capture object released.")
+    # ---------------------
 
     # --- Update Case Status ---
-    if case_id_to_update:
-        with file_lock: # Lock for reading and writing case data
-            if user_id in user_cases:
-                case_found = False
+    case_updated = False
+    if active_case_id: # Only update if we know which case was running
+        with file_lock:
+            if user_id in user_cases and any(c['id'] == active_case_id for c in user_cases[user_id]):
                 for case in user_cases[user_id]:
-                    if case['id'] == case_id_to_update:
-                        case['status'] = 'Analyzed' # Update the status
-                        case_found = True
-                        app.logger.info(f"Case {case_id_to_update} status updated to 'Analyzed' for user {user_id}.")
+                    if case['id'] == active_case_id:
+                        case['status'] = 'Analyzed - Report Ready'
+                        case_updated = True
+                        app.logger.info(f"Updated status for case {active_case_id} to 'Analyzed - Report Ready'.")
                         break
-                if case_found:
-                    save_cases_to_json() # Save the change
-                else:
-                     app.logger.warning(f"Could not find case {case_id_to_update} to update status for user {user_id} after analysis stop.")
             else:
-                 app.logger.warning(f"User {user_id} not found in user_cases dict during status update for case {case_id_to_update}.")
-    else:
-        app.logger.warning("No current_analyzing_case_id was set when stop_analysis was called.")
+                 app.logger.warning(f"Could not find case {active_case_id} for user {user_id} to update status after stop.")
 
+        if case_updated:
+            save_cases_to_json() # Save status update
+
+    current_analysis_case_id = None # Clear the tracker
+    # ------------------------
 
     return jsonify({"status": "stopped"})
 

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Crime Interrogation Analysis</title>
+    <style>
+      :root {
+        --auth-bg-page: #0a192f;
+        --auth-bg-card: #112240;
+        --auth-text-primary: #ccd6f6;
+        --auth-text-secondary: #8892b0;
+        --auth-accent-primary: #64ffda;
+        --auth-border-color: #233554;
+        --auth-input-bg: #1d2d50;
+        --auth-error-text: #ff79c6;
+      }
+
+      body.auth-page {
+        background-color: var(--auth-bg-page);
+        color: var(--auth-text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol";
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .auth-container {
+        background-color: var(--auth-bg-card);
+        padding: 30px 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        width: 100%;
+        max-width: 420px;
+        text-align: center;
+      }
+
+      .auth-container h1 {
+        color: var(--auth-text-primary);
+        margin-bottom: 10px;
+        font-size: 1.8em;
+        font-weight: 600;
+      }
+      .auth-container p.subtitle {
+        color: var(--auth-text-secondary);
+        margin-bottom: 30px;
+        font-size: 0.95em;
+      }
+
+      .auth-form .form-group {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+
+      .auth-form label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--auth-text-secondary);
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+
+      .auth-form input[type="email"],
+      .auth-form input[type="password"] {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--auth-border-color);
+        background-color: var(--auth-input-bg);
+        color: var(--auth-text-primary);
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 1em;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .auth-form input[type="email"]:focus,
+      .auth-form input[type="password"]:focus {
+        outline: none;
+        border-color: var(--auth-accent-primary);
+        box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.15);
+      }
+
+      .auth-form .btn-primary {
+        background-color: var(--auth-accent-primary);
+        color: var(--auth-bg-page);
+        border: none;
+        padding: 12px 15px;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 1.05em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: filter 0.2s ease-out;
+      }
+
+      .auth-form .btn-primary:hover {
+        filter: brightness(1.15);
+      }
+
+      .auth-form .btn-primary:disabled {
+        background-color: var(--auth-text-secondary);
+        cursor: not-allowed;
+      }
+
+      .auth-links {
+        margin-top: 25px;
+        font-size: 0.9em;
+      }
+
+      .auth-links a {
+        color: var(--auth-accent-primary);
+        text-decoration: none;
+        margin: 0 10px;
+      }
+
+      .auth-links a:hover {
+        text-decoration: underline;
+      }
+
+      #error-message {
+        /* For displaying Firebase auth errors */
+        color: var(--auth-error-text);
+        background-color: rgba(255, 121, 198, 0.1);
+        border: 1px solid rgba(255, 121, 198, 0.2);
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+        text-align: center;
+        display: none; /* Hidden by default */
+      }
+    </style>
+  </head>
+  <body class="auth-page">
+    <div class="auth-container">
+      <h1>Welcome Back</h1>
+      <p class="subtitle">Log in to access your dashboard</p>
+
+      <div id="error-message"></div>
+
+      <form id="login-form" class="auth-form">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            autocomplete="email"
+          />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+        <button type="submit" id="login-button" class="btn-primary">
+          Log In
+        </button>
+      </form>
+      <div class="auth-links">
+        <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
+        <span>|</span>
+        <a href="{{ url_for('register') }}">Create an Account</a>
+      </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+    <!-- Firebase Configuration from static file -->
+    <script src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
+
+    <script>
+      // Firebase app and auth are initialized in firebase-config.js
+      // const auth = firebase.auth(); // This should now be available from firebase-config.js
+
+      const loginForm = document.getElementById("login-form");
+      const loginButton = document.getElementById("login-button");
+      const errorMessageDiv = document.getElementById("error-message");
+
+      loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const email = loginForm.email.value;
+        const password = loginForm.password.value;
+
+        loginButton.disabled = true;
+        loginButton.textContent = "Logging in...";
+        errorMessageDiv.style.display = "none";
+        errorMessageDiv.textContent = "";
+
+        auth
+          .signInWithEmailAndPassword(email, password)
+          .then((userCredential) => {
+            // Signed in
+            const user = userCredential.user;
+            console.log("User logged in:", user.uid);
+
+            // Get ID token
+            return user.getIdToken().then((idToken) => {
+              // Send token to backend to set HttpOnly cookie
+              return fetch("/set_auth_cookie", {
+                method: "POST",
+                headers: {
+                  Authorization: "Bearer " + idToken,
+                  "Content-Type": "application/json",
+                },
+              });
+            });
+          })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(
+                "Failed to set auth cookie. Status: " + response.status
+              );
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log("Auth cookie set successfully:", data.message);
+            // Redirect to dashboard or original destination
+            const nextUrl =
+              new URLSearchParams(window.location.search).get("next") ||
+              '{{ url_for("dashboard") }}';
+            window.location.href = nextUrl;
+          })
+          .catch((error) => {
+            console.error("Login error:", error);
+            errorMessageDiv.textContent = error.message; // Display a user-friendly error
+            errorMessageDiv.style.display = "block";
+            loginButton.disabled = false;
+            loginButton.textContent = "Log In";
+          });
+      });
+    </script>
+  </body>
+</html>

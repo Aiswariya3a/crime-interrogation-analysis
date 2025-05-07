@@ -5,7 +5,58 @@
             "name": "Case1",
             "bio": "theft",
             "created_at": "2025-04-24T15:13:55.649251",
-            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2"
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "b5ae22c7b93d4c2a88ac3d3e89fdd51e",
+            "name": "Case2",
+            "bio": "Robbery",
+            "created_at": "2025-05-07T08:50:31.649817",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "14715eda5e1a43c18440881bc3b0d791",
+            "name": "case3",
+            "bio": "Vandalism",
+            "created_at": "2025-05-07T10:17:05.177768",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "ef53f6fc45cf46db9fa53ae2712effbc",
+            "name": "Case4",
+            "bio": "Theft",
+            "created_at": "2025-05-07T11:43:54.716878",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "fbcd4bf372f8423687c5fdbe29f709ed",
+            "name": "Case5",
+            "bio": "Cyber Attack",
+            "created_at": "2025-05-07T11:51:22.744078",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "cab30ba9c1174e849f2be04deb0ad28f",
+            "name": "Case6",
+            "bio": "Theft",
+            "created_at": "2025-05-07T11:59:05.035418",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        }
+    ],
+    "ERKaPTOQKwaMFoMkjvfatb1HG072": [
+        {
+            "id": "69a97ac6137c44b9a00272c48d5132a6",
+            "name": "Case08",
+            "bio": "Car Theft",
+            "created_at": "2025-05-07T12:33:09.304768",
+            "user_id": "ERKaPTOQKwaMFoMkjvfatb1HG072",
+            "status": "Analyzed - Report Ready"
         }
     ]
 }

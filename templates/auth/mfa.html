@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MFA Verification - Crime Interrogation Analysis</title>
+    <style>
+      :root {
+        --auth-bg-page: #0a192f;
+        --auth-bg-card: #112240;
+        --auth-text-primary: #ccd6f6;
+        --auth-text-secondary: #8892b0;
+        --auth-accent-primary: #64ffda;
+        --auth-border-color: #233554;
+        --auth-input-bg: #1d2d50;
+        --auth-error-text: #ff79c6;
+      }
+
+      body.auth-page {
+        background-color: var(--auth-bg-page);
+        color: var(--auth-text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol";
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .auth-container {
+        background-color: var(--auth-bg-card);
+        padding: 30px 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        width: 100%;
+        max-width: 420px;
+        text-align: center;
+      }
+
+      .auth-container h1 {
+        color: var(--auth-text-primary);
+        margin-bottom: 10px;
+        font-size: 1.8em;
+        font-weight: 600;
+      }
+      .auth-container p.subtitle {
+        color: var(--auth-text-secondary);
+        margin-bottom: 30px;
+        font-size: 0.95em;
+      }
+
+      .auth-form .form-group {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+
+      .auth-form label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--auth-text-secondary);
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+
+      .auth-form input[type="text"],
+      .auth-form input[type="number"] {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--auth-border-color);
+        background-color: var(--auth-input-bg);
+        color: var(--auth-text-primary);
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 1em;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .auth-form input[type="text"]:focus,
+      .auth-form input[type="number"]:focus {
+        outline: none;
+        border-color: var(--auth-accent-primary);
+        box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.15);
+      }
+
+      .auth-form .btn-primary {
+        background-color: var(--auth-accent-primary);
+        color: var(--auth-bg-page);
+        border: none;
+        padding: 12px 15px;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 1.05em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: filter 0.2s ease-out;
+      }
+
+      .auth-form .btn-primary:hover {
+        filter: brightness(1.15);
+      }
+      .auth-form .btn-primary:disabled {
+        background-color: var(--auth-text-secondary);
+        cursor: not-allowed;
+      }
+
+      .auth-links {
+        margin-top: 25px;
+        font-size: 0.9em;
+      }
+
+      .auth-links a {
+        color: var(--auth-accent-primary);
+        text-decoration: none;
+      }
+
+      .auth-links a:hover {
+        text-decoration: underline;
+      }
+
+      #error-message {
+        color: var(--auth-error-text);
+        background-color: rgba(255, 121, 198, 0.1);
+        border: 1px solid rgba(255, 121, 198, 0.2);
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+        text-align: center;
+        display: none; /* Hidden by default */
+      }
+    </style>
+  </head>
+  <body class="auth-page">
+    <div class="auth-container">
+      <h1>Two-Factor Authentication</h1>
+      <p class="subtitle">Enter the code from your authenticator app</p>
+
+      <div id="error-message"></div>
+
+      <form id="mfa-form" class="auth-form">
+        <div class="form-group">
+          <label for="mfa-code">Verification Code</label>
+          <input
+            type="number"
+            id="mfa-code"
+            name="mfa-code"
+            required
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="one-time-code"
+          />
+        </div>
+        <button type="submit" id="mfa-button" class="btn-primary">
+          Verify Code
+        </button>
+      </form>
+      <div class="auth-links">
+        <p><a href="{{ url_for('login') }}">Back to Login</a></p>
+        {# Add link for recovery options if implemented #}
+      </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+    <!-- Firebase Configuration from static file -->
+    <script src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
+
+    <script>
+      // Firebase app and auth are initialized in firebase-config.js
+      // const auth = firebase.auth(); // This should now be available from firebase-config.js
+
+      const mfaForm = document.getElementById("mfa-form");
+      const mfaButton = document.getElementById("mfa-button");
+      const errorMessageDiv = document.getElementById("error-message");
+
+      // This script assumes you have stored the MultiFactorResolver object from the initial login attempt
+      // (e.g., in sessionStorage) when Firebase indicated MFA was required.
+      let resolver = null;
+      try {
+        const resolverString = sessionStorage.getItem("firebaseMfaResolver");
+        if (resolverString) {
+          const plainResolver = JSON.parse(resolverString);
+          // Reconstruct the resolver. This is a simplified example.
+          // Actual reconstruction might be more complex or Firebase SDK might offer utilities.
+          // For now, we are assuming that `auth.currentUser.multiFactor.getSession()` might be needed
+          // or the resolver is directly usable if Firebase SDK allows its properties to be serialized/deserialized.
+          // THIS PART IS COMPLEX AND HIGHLY DEPENDENT ON HOW FIREBASE SDK HANDLES RESOLVER SERIALIZATION.
+          // The most robust way is to get a new session if resolver is not directly available:
+          if (auth.currentUser && auth.currentUser.multiFactor) {
+            auth.currentUser.multiFactor
+              .getSession()
+              .then((session) => {
+                resolver = {
+                  session: session,
+                  // hints might need to be re-fetched or were stored
+                  hints: JSON.parse(
+                    sessionStorage.getItem("firebaseMfaHints") || "[]"
+                  ),
+                  // This is a placeholder for a proper resolver reconstruction.
+                  // You might need to handle this differently based on Firebase docs for web MFA flow.
+                };
+                console.log(
+                  "MFA session potentially recovered for current user."
+                );
+              })
+              .catch((err) =>
+                console.error("Could not get MFA session: ", err)
+              );
+          } else {
+            console.warn(
+              "MFA resolver or current user not found. MFA page might not work correctly."
+            );
+            errorMessageDiv.textContent =
+              "MFA session error. Please try logging in again.";
+            errorMessageDiv.style.display = "block";
+            mfaButton.disabled = true;
+          }
+        }
+      } catch (e) {
+        console.error("Error accessing MFA resolver from session storage:", e);
+        errorMessageDiv.textContent =
+          "Error initializing MFA. Please try logging in again.";
+        errorMessageDiv.style.display = "block";
+        mfaButton.disabled = true;
+      }
+
+      mfaForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const mfaCode = mfaForm["mfa-code"].value;
+
+        if (!resolver || !resolver.session) {
+          errorMessageDiv.textContent =
+            "MFA session not found. Please try logging in again.";
+          errorMessageDiv.style.display = "block";
+          return;
+        }
+
+        mfaButton.disabled = true;
+        mfaButton.textContent = "Verifying...";
+        errorMessageDiv.style.display = "none";
+
+        const cred = firebase.auth.PhoneAuthProvider.credential(
+          resolver.session,
+          mfaCode
+        );
+        // Assuming TOTP (Authenticator app) is the first factor for simplicity
+        // If you have multiple MFA types (e.g. SMS and TOTP), you need to select the correct one from resolver.hints
+        const multiFactorAssertion =
+          firebase.auth.MultiFactorAssertion.facteurFrom(cred);
+
+        resolver
+          .resolveSignIn(multiFactorAssertion)
+          .then((userCredential) => {
+            console.log(
+              "MFA successful, user signed in:",
+              userCredential.user.uid
+            );
+            sessionStorage.removeItem("firebaseMfaResolver"); // Clean up
+            sessionStorage.removeItem("firebaseMfaHints");
+
+            return userCredential.user.getIdToken().then((idToken) => {
+              return fetch("/set_auth_cookie", {
+                method: "POST",
+                headers: {
+                  Authorization: "Bearer " + idToken,
+                  "Content-Type": "application/json",
+                },
+              });
+            });
+          })
+          .then((response) => {
+            if (!response.ok)
+              throw new Error(
+                "Failed to set auth cookie. Status: " + response.status
+              );
+            return response.json();
+          })
+          .then((data) => {
+            console.log(
+              "Auth cookie set successfully after MFA:",
+              data.message
+            );
+            const nextUrl =
+              new URLSearchParams(window.location.search).get("next") ||
+              '{{ url_for("dashboard") }}';
+            window.location.href = nextUrl;
+          })
+          .catch((error) => {
+            console.error("MFA Error:", error);
+            errorMessageDiv.textContent = error.message; // Or a more user-friendly error
+            errorMessageDiv.style.display = "block";
+            mfaButton.disabled = false;
+            mfaButton.textContent = "Verify Code";
+          });
+      });
+    </script>
+  </body>
+</html>
