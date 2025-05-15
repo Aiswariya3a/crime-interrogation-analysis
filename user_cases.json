@@ -47,6 +47,38 @@
             "created_at": "2025-05-07T11:59:05.035418",
             "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
             "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "a5885c3795ff4f6aaf93884e3404800a",
+            "name": "Case7",
+            "bio": "Students attrocity",
+            "created_at": "2025-05-07T16:25:08.144158",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "e9af36adeab344bc8be026a8fe420a95",
+            "name": "Case10",
+            "bio": "Theft",
+            "created_at": "2025-05-09T17:57:11.920323",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "f435d30565e6482e9ea19413d73bd86c",
+            "name": "Case11",
+            "bio": "Theft",
+            "created_at": "2025-05-09T18:00:02.069743",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
+        },
+        {
+            "id": "2ddcab368c754e2d888136ca92ec7ef4",
+            "name": "case13",
+            "bio": "Theft",
+            "created_at": "2025-05-15T12:06:59.934720",
+            "user_id": "nD1UgKD4V5NqyA38HUDHKQg2xCm2",
+            "status": "Analyzed - Report Ready"
         }
     ],
     "ERKaPTOQKwaMFoMkjvfatb1HG072": [
@@ -56,6 +88,16 @@
             "bio": "Car Theft",
             "created_at": "2025-05-07T12:33:09.304768",
             "user_id": "ERKaPTOQKwaMFoMkjvfatb1HG072",
+            "status": "Analyzed - Report Ready"
+        }
+    ],
+    "9HMQiVYwdzRYOuLCkNB5ReRVaTx1": [
+        {
+            "id": "57570f25cfe64f2a82ea00aa3bee7992",
+            "name": "Case 9",
+            "bio": "Domestic Violence",
+            "created_at": "2025-05-07T13:54:49.718309",
+            "user_id": "9HMQiVYwdzRYOuLCkNB5ReRVaTx1",
             "status": "Analyzed - Report Ready"
         }
     ]

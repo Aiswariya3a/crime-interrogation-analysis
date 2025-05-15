@@ -657,23 +657,39 @@ def set_auth_cookie():
 
     token = token.split(' ')[1]
     try:
-        # Verify the token before setting the cookie
+        # First attempt to verify the token
         auth.verify_id_token(token)
-        response = make_response(jsonify({"message": "Token processed"}))
-        # Set HttpOnly cookie for security
-        response.set_cookie(
-            'firebaseToken',
-            token,
-            max_age=3600,  # 1 hour expiry, match Firebase token expiry if possible
-            httponly=True, # Prevent JS access
-            secure=request.is_secure, # True if using HTTPS
-            samesite='Lax' # Recommended for most cases
-        )
-        app.logger.info("Auth token cookie set.")
-        return response
-    except Exception as e:
-        app.logger.error(f"Token verification error during cookie setting: {e}")
+    except auth.InvalidIdTokenError as e:
+        if "Token used too early" in str(e):
+            app.logger.warning(f"Token used too early, attempting a small delay and retry: {e}")
+            time.sleep(10) # Pause for 2 seconds to allow clocks to catch up for minor skew
+            try:
+                auth.verify_id_token(token) # Retry verification
+                app.logger.info("Token verification successful after retry.")
+            except Exception as retry_e:
+                app.logger.error(f"Token verification failed after retry: {retry_e}")
+                return jsonify({"message": f"Invalid token after retry: {retry_e}"}), 403
+        else:
+            # Other types of InvalidIdTokenError (e.g., expired, malformed)
+            app.logger.error(f"Token verification failed (InvalidIdTokenError other than 'too early'): {e}")
+            return jsonify({"message": f"Invalid token: {e}"}), 403
+    except Exception as e: # Catch any other non-InvalidIdTokenError exceptions during initial verification
+        app.logger.error(f"General token verification error during cookie setting: {e}")
         return jsonify({"message": f"Invalid token: {e}"}), 403
+
+    # If verification is successful (either first try or after retry):
+    response = make_response(jsonify({"message": "Token processed"}))
+    # Set HttpOnly cookie for security
+    response.set_cookie(
+        'firebaseToken',
+        token,
+        max_age=3600,  # 1 hour expiry, match Firebase token expiry if possible
+        httponly=True, # Prevent JS access
+        secure=request.is_secure, # True if using HTTPS
+        samesite='Lax' # Recommended for most cases
+    )
+    app.logger.info("Auth token cookie set.")
+    return response
 
 # --- Logout --- (No change needed)
 @app.route('/logout', methods=['GET', 'POST'])

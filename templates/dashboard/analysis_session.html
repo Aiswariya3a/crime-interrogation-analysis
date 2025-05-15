@@ -81,14 +81,14 @@ case.name }}{% endblock %} {% block page_title %}Analysis Session: {{ case.name
             y: {
               beginAtZero: true,
               max: 100, // Emotions likely percentages
-              ticks: { color: "var(--light-slate)" },
+              ticks: { color: "white" },
               grid: { color: "var(--hover-slate)" },
             },
             x: {
               // type: 'time', // Use if labels are Date objects
               // time: { unit: 'second' },
               ticks: {
-                color: "var(--light-slate)",
+                color: "white",
                 maxRotation: 0,
                 autoSkip: true,
                 maxTicksLimit: 15,
@@ -97,7 +97,7 @@ case.name }}{% endblock %} {% block page_title %}Analysis Session: {{ case.name
             },
           },
           plugins: {
-            legend: { labels: { color: "var(--light-slate)" } },
+            legend: { labels: { color: "white" } },
           },
           animation: { duration: 200 }, // Faster updates
         },
