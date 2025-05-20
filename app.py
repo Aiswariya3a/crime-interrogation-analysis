@@ -23,6 +23,9 @@ from jinja2 import Environment, select_autoescape # Added for Jinja filter
 import os
 import json
 import threading
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -78,7 +81,7 @@ def save_cases_to_json():
 # IMPORTANT: Replace with your actual Gemini API key
 # Consider using environment variables for security: os.environ.get('GEMINI_API_KEY')
 # AIzaSyCUwJqjSJUTgYk0bMRM7TIgY8gMiamuHf0
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', "AIzaSyCUwJqjSJUTgYk0bMRM7TIgY8gMiamuHf0") # Use env var
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') # Use env var
 try:
     if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE":
         genai.configure(api_key=GEMINI_API_KEY)
@@ -94,13 +97,13 @@ except Exception as e:
 
 # --- Firebase Initialization ---
 try:
-    cred = credentials.Certificate("firebase-service-account.json")
+    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
     app.logger.info("Firebase Admin SDK initialized successfully.")
 except Exception as e:
     app.logger.error(f"Failed to initialize Firebase Admin SDK: {e}")
-    # Depending on your app's logic, you might want to exit or disable features
-    # For now, we'll just log the error. Auth routes might fail.
+
 
 
 # --- Global Variables (for active session) ---

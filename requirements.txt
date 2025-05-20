@@ -1,6 +1,7 @@
 Flask
 deepface
 opencv-python
+python-dotenv
 tensorflow # or the specific backend you chose
 pandas
 google-generativeai
