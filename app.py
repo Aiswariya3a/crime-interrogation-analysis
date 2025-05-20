@@ -78,14 +78,11 @@ def save_cases_to_json():
 # Note: Global analysis_data still used for the *active* session
 
 # --- Configuration ---
-# IMPORTANT: Replace with your actual Gemini API key
 # Consider using environment variables for security: os.environ.get('GEMINI_API_KEY')
-# AIzaSyCUwJqjSJUTgYk0bMRM7TIgY8gMiamuHf0
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') # Use env var
 try:
     if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY_HERE":
         genai.configure(api_key=GEMINI_API_KEY)
-        # Corrected model name based on Gemini documentation (check available models)
         gemini_model = genai.GenerativeModel('gemini-2.0-flash') # Use gemini-1.5-flash or similar
         app.logger.info("Gemini AI configured successfully.")
     else:
